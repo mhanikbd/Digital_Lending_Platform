@@ -345,7 +345,7 @@ function DemoAccountPicker({
     // the picker there would remove the feature exactly where it is used.
     <div className="rounded-lg border border-line bg-panel px-3 py-2.5 short:py-2 tiny:hidden">
       <p className="font-mono text-[10px] tracking-wider text-ink-subtle uppercase">
-        Local environment &middot; pick an account to fill the form
+        Local environment &middot; Demo User Only For the Demonstration
       </p>
 
       <ul className="mt-2 grid grid-cols-2 gap-1.5 short:mt-1.5 short:grid-cols-3">
