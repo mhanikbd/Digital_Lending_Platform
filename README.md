@@ -4,6 +4,7 @@ A configurable, bank-grade digital lending and account opening platform. The
 first lending product is **e-Loan**; further products (Quick, Instant, Personal,
 Car, Student, Home, SME/CMSME, Credit Card) are introduced through configuration
 and product versioning rather than new codebases.
+![Uploading image.png…]()
 
 > **Current state: Milestone 1 — platform foundation.**
 > Infrastructure, the Spring Boot API skeleton, database migrations and the bank
