@@ -1,0 +1,19 @@
+# Runs inside the compose network, where dependencies are addressed by service name.
+# All credentials arrive from the environment; nothing sensitive is defaulted here.
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/${POSTGRES_DB:digital_lending}
+  data:
+    redis:
+      host: redis
+
+dlp:
+  environment: docker
+  storage:
+    endpoint: http://minio:9000
+
+logging:
+  structured:
+    # JSON on stdout so Promtail can ship structured fields to Loki.
+    format:
+      console: ecs

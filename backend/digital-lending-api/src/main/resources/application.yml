@@ -1,0 +1,146 @@
+# Base configuration. Environment-specific overrides live in application-<profile>.yml.
+# Every secret is read from the environment; the defaults below are development-only
+# values and are never used in a deployed environment.
+spring:
+  application:
+    name: digital-lending-api
+  profiles:
+    default: local
+
+  datasource:
+    url: ${DLP_DB_URL:jdbc:postgresql://localhost:5432/digital_lending}
+    username: ${DLP_DB_USERNAME:dlp_owner}
+    password: ${DLP_DB_PASSWORD:dlp_local_only}
+    hikari:
+      pool-name: dlp-pool
+      maximum-pool-size: ${DLP_DB_POOL_MAX:20}
+      minimum-idle: ${DLP_DB_POOL_MIN:5}
+      connection-timeout: 30000
+      leak-detection-threshold: 60000
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema. Hibernate is only allowed to verify it.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    default-schema: public
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    out-of-order: false
+
+  data:
+    redis:
+      host: ${DLP_REDIS_HOST:localhost}
+      port: ${DLP_REDIS_PORT:6379}
+      password: ${DLP_REDIS_PASSWORD:}
+      timeout: 2s
+      connect-timeout: 2s
+
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+  servlet:
+    multipart:
+      max-file-size: ${DLP_MAX_FILE_SIZE:10MB}
+      max-request-size: ${DLP_MAX_REQUEST_SIZE:25MB}
+
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${DLP_SERVER_PORT:8080}
+  shutdown: graceful
+  forward-headers-strategy: framework
+  error:
+    # Failure detail is logged with the correlation id, never returned to the caller.
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+
+management:
+  # Actuator is bound to its own port that is not published outside the container network.
+  server:
+    port: ${DLP_MANAGEMENT_PORT:9091}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+dlp:
+  environment: ${DLP_ENVIRONMENT:local}
+  api:
+    version: v1
+  cors:
+    allowed-origins: ${DLP_CORS_ORIGINS:http://localhost:3000}
+    allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+    max-age-seconds: 3600
+
+  # ---- Authentication (Milestone 5) ---------------------------------------
+  # Security parameters, not business rules: these are tuned per environment,
+  # unlike product rules which are configured in the database.
+  auth:
+    jwt:
+      # HS256 signing key. At least 32 bytes, or the application refuses to
+      # start. The default is a development value and is replaced by a secret in
+      # every deployed environment.
+      secret: ${DLP_JWT_SECRET:dev-only-signing-key-change-me-32-bytes-minimum}
+      issuer: ${DLP_JWT_ISSUER:digital-lending-platform}
+      # Short, because an access token cannot be revoked.
+      access-ttl: ${DLP_ACCESS_TTL:15m}
+    lockout:
+      max-failed-attempts: ${DLP_MAX_FAILED_ATTEMPTS:5}
+      lock-duration: ${DLP_LOCK_DURATION:15m}
+    otp:
+      length: 6
+      ttl: ${DLP_OTP_TTL:5m}
+      max-attempts: ${DLP_OTP_MAX_ATTEMPTS:5}
+      # Returns the code in the API response so a developer can complete the
+      # journey with no SMS gateway. Never true where a customer can reach it.
+      expose-in-response: ${DLP_OTP_EXPOSE:false}
+    session:
+      refresh-ttl: ${DLP_REFRESH_TTL:30d}
+
+  storage:
+    endpoint: ${DLP_STORAGE_ENDPOINT:http://localhost:9000}
+    access-key: ${DLP_STORAGE_ACCESS_KEY:dlp_minio_local}
+    secret-key: ${DLP_STORAGE_SECRET_KEY:dlp_minio_local_secret}
+    bucket: ${DLP_STORAGE_BUCKET:dlp-documents}
+    auto-create-bucket: ${DLP_STORAGE_AUTO_CREATE_BUCKET:true}
+
+logging:
+  level:
+    root: INFO
+    com.naztech.lending: ${DLP_LOG_LEVEL:DEBUG}
+  pattern:
+    # Every log line carries the correlation id of the request that produced it.
+    correlation: "[%X{correlationId:-no-correlation-id}] "

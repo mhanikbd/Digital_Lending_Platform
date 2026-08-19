@@ -1,0 +1,21 @@
+# Integration test profile. Connection details are injected at runtime from the
+# Testcontainers instances, so nothing environment-specific belongs here.
+spring:
+  flyway:
+    clean-disabled: true
+
+management:
+  server:
+    # Random port: several test contexts may run in the same JVM.
+    port: 0
+
+dlp:
+  environment: test
+  storage:
+    bucket: dlp-documents-test
+    auto-create-bucket: true
+
+logging:
+  level:
+    root: WARN
+    com.naztech.lending: INFO

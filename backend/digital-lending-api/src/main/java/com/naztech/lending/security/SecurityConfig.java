@@ -1,0 +1,117 @@
+package com.naztech.lending.security;
+
+import com.naztech.lending.config.CorsProperties;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+/**
+ * Baseline security posture for the platform.
+ *
+ * <p>Milestone 1 establishes the shape only: the API is stateless, closed by
+ * default, and returns the standard error envelope. Customer PIN/OTP login,
+ * bank-user MFA, JWT issuance and database-driven RBAC arrive in Milestone 5 and
+ * plug into {@code anyRequest().authenticated()} without reshaping this class.
+ *
+ * <p>Actuator runs on its own management port that is never published outside the
+ * container network, which is why it gets a permissive chain of its own.
+ */
+@Configuration
+@EnableMethodSecurity
+public class SecurityConfig {
+
+    /** Paths that must stay reachable without a credential, in every environment. */
+    private static final String[] PUBLIC_PATHS = {
+            "/api/v1/auth/bank/login",
+            "/api/v1/auth/bank/mfa",
+            "/api/v1/auth/customer/otp",
+            "/api/v1/auth/customer/otp/verify",
+            "/api/v1/auth/customer/login",
+            "/api/v1/auth/token/refresh",
+            "/api/v1/auth/logout",
+            "/api/v1/platform/health",
+            "/api/v1/platform/info",
+            "/v3/api-docs",
+            "/v3/api-docs/**",
+            "/swagger-ui.html",
+            "/swagger-ui/**"
+    };
+
+    @Bean
+    @Order(1)
+    SecurityFilterChain actuatorSecurityFilterChain(HttpSecurity http) throws Exception {
+        return http.securityMatcher(EndpointRequest.toAnyEndpoint())
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
+                .build();
+    }
+
+    @Bean
+    @Order(2)
+    SecurityFilterChain apiSecurityFilterChain(HttpSecurity http,
+                                               CorsConfigurationSource corsConfigurationSource,
+                                               RestAuthenticationEntryPoint authenticationEntryPoint,
+                                               RestAccessDeniedHandler accessDeniedHandler) throws Exception {
+        return http
+                // No cookies or server-side sessions are used, so CSRF tokens add nothing.
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .httpBasic(basic -> basic.disable())
+                .formLogin(form -> form.disable())
+                .logout(logout -> logout.disable())
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.deny())
+                        .contentTypeOptions(Customizer.withDefaults())
+                        .referrerPolicy(referrer -> referrer
+                                .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000)))
+                .authorizeHttpRequests(requests -> requests
+                        .requestMatchers(PUBLIC_PATHS).permitAll()
+                        // Closed by default: a new endpoint is unreachable until its
+                        // authorisation rule is added deliberately.
+                        .anyRequest().authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(Customizer.withDefaults())
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
+                .exceptionHandling(handling -> handling
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
+                .build();
+    }
+
+    @Bean
+    CorsConfigurationSource corsConfigurationSource(CorsProperties properties) {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(properties.allowedOrigins());
+        configuration.setAllowedMethods(properties.allowedMethods());
+        configuration.setAllowedHeaders(java.util.List.of(
+                HttpHeaders.AUTHORIZATION,
+                HttpHeaders.CONTENT_TYPE,
+                HttpHeaders.ACCEPT,
+                "X-Correlation-Id",
+                "Idempotency-Key"));
+        configuration.setExposedHeaders(java.util.List.of("X-Correlation-Id"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(properties.maxAgeSeconds());
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", configuration);
+        return source;
+    }
+}

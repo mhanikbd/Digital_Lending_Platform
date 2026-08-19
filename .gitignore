@@ -1,0 +1,47 @@
+# Java / Maven
+target/
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.jar
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment and secrets - never commit a populated .env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and local state
+*.log
+logs/
+
+# Native Windows development data: MinIO objects, local service logs
+.local/
+
+# MinIO runtime/data
+.minio.sys/
+**/.minio.sys/
+Tech/Product/.minio.sys/
+
+# Runtime/data directories
+Tech/Product/

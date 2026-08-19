@@ -1,0 +1,9 @@
+# Entry point so the platform starts with a plain `docker compose up` from the
+# repository root. The stack itself is defined under infrastructure/docker/,
+# which is also where image tags and service wiring are maintained.
+#
+# Requires Docker Compose v2.20 or newer for `include`. On an older version run
+# the stack directly:
+#   docker compose -f infrastructure/docker/docker-compose.yml --env-file .env up -d
+include:
+  - path: infrastructure/docker/docker-compose.yml

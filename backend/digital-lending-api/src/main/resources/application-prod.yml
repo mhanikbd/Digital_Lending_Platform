@@ -1,0 +1,32 @@
+# Production posture. Every value below must be supplied by the deployment
+# environment; the application fails fast rather than falling back to a default.
+spring:
+  datasource:
+    url: ${DLP_DB_URL}
+    username: ${DLP_DB_USERNAME}
+    password: ${DLP_DB_PASSWORD}
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+dlp:
+  environment: production
+  storage:
+    auto-create-bucket: false
+
+logging:
+  level:
+    root: WARN
+    com.naztech.lending: INFO
+
+  structured:
+    format:
+      console: ecs

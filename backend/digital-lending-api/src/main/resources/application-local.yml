@@ -1,0 +1,19 @@
+# Developer workstation: infrastructure containers are reachable on localhost.
+dlp:
+  environment: local
+
+  auth:
+    otp:
+      # No SMS gateway on a workstation, so the code comes back in the response
+      # and the customer journey can be completed end to end. Local only.
+      expose-in-response: true
+    bootstrap:
+      # Seeded on first start by LocalAuthBootstrap, which runs under this
+      # profile only. Not a secret, and not reachable from any other profile.
+      username: EMP-10001
+      password: ChangeMe#Local1
+      display-name: Local Administrator
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG

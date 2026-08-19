@@ -1,0 +1,2192 @@
+You are implementing a production-grade, configurable Digital Lending Platform for local Bangladeshi banks.
+
+# 1. PROJECT OBJECTIVE
+
+Build a bank-grade Digital Lending & Account Opening Platform supporting:
+
+1. Customer Mobile App — Flutter
+2. Field Officer Mobile App — Flutter
+3. Bank Back-office Web Application — Next.js + TypeScript
+4. Backend — Java 21 + Spring Boot
+5. Primary Database — PostgreSQL
+6. Cache / short-lived state — Redis
+7. Document/Object Storage — MinIO / S3-compatible storage
+8. Future event platform — Kafka
+9. Infrastructure — Docker, Nginx/API Gateway, Prometheus, Grafana, Loki
+
+The first complete lending product must be e-Loan. The architecture must then allow Quick Loan, Instant Loan, Personal Loan, Car Loan, Student Loan, Home Loan, SME/CMSME Loan and Credit Card products to be introduced primarily through configuration rather than separate codebases and workflows.
+
+The platform must support both digital customer-originated applications and Field Officer-assisted applications.
+
+It must also support the separate New Customer Account Opening journey and the bank-side account-opening approval workflow.
+
+# 2. NON-NEGOTIABLE ARCHITECTURE PRINCIPLES
+
+## 2.1 Backend owns authoritative business logic
+
+Flutter and Next.js are client/presentation layers.
+
+They must NOT contain authoritative logic for:
+
+- Loan eligibility
+- Loan limits
+- Interest calculation
+- EMI calculation
+- Fees
+- Approval authority
+- Workflow transitions
+- Credit decisions
+- DPD
+- NPL classification
+- Repayment allocation
+- Regulatory limits
+
+All authoritative decisions must be made by Spring Boot.
+
+The mobile/web clients should request decisions from APIs.
+
+## 2.2 Configuration over hard-coding
+
+The following must be configurable from the Admin Portal:
+
+- Loan products
+- Product versions
+- Product parameters
+- Eligibility criteria
+- Eligibility rule groups
+- Credit rules
+- Loan amount limits
+- Tenure
+- Interest/profit
+- Fees
+- VAT
+- Insurance
+- Repayment frequency
+- Grace period
+- Required documents
+- Customer eligibility
+- Risk rules
+- DBR rules
+- Approval limits
+- Approval hierarchy
+- Workflow states
+- Workflow transitions
+- NPL/DPD rules
+- Notification rules
+- Regulatory parameters
+
+Do not hard-code product-specific business rules in Java services.
+
+## 2.3 Product versioning
+
+Every loan product must be versioned.
+
+Example:
+
+eLoan
+- Version 1
+- Version 2
+- Version 3
+
+Applications must store:
+
+- product_id
+- product_version_id
+
+Old applications and loans must continue to use the configuration under which they were evaluated/approved.
+
+Never modify live product rules in-place without creating a new version.
+
+## 2.4 Financial precision
+
+Never use float or double for monetary calculations.
+
+Use:
+
+- PostgreSQL NUMERIC
+- Java BigDecimal
+
+Recommended financial precision:
+
+NUMERIC(20,4)
+
+## 2.5 Modular monolith first
+
+Do NOT start with microservices.
+
+Build one Spring Boot modular monolith with clearly separated domain modules.
+
+Possible future extraction into microservices may happen only after scale requirements justify it.
+
+## 2.6 Database authority
+
+PostgreSQL is authoritative for:
+
+- Customer
+- KYC
+- Account application
+- Loan application
+- Loan
+- Workflow state
+- Approval
+- Repayment
+- Balance
+- Collection
+- NPL
+- Audit
+- Document metadata
+
+## 2.7 Database migrations
+
+Use Flyway.
+
+Never make undocumented schema changes.
+
+Every schema modification must have a Flyway migration.
+
+## 2.8 API design
+
+Use REST APIs with versioning:
+
+/api/v1/...
+
+Use DTOs. Never expose JPA entities directly from controllers.
+
+Every API should have:
+
+- Request validation
+- Authorization
+- Consistent response structure
+- Error handling
+- Logging
+- Correlation ID
+- OpenAPI documentation
+
+# 3. REPOSITORY STRUCTURE
+
+Create a monorepo:
+
+digital-lending-platform/
+
+    backend/
+        digital-lending-api/
+
+    web/
+        bank-portal/
+
+    mobile/
+        customer-app/
+        field-officer-app/
+
+    infrastructure/
+        docker/
+        postgres/
+        nginx/
+        monitoring/
+        scripts/
+
+    docs/
+        architecture/
+        database/
+        api/
+        workflows/
+        product/
+        deployment/
+        testing/
+
+    README.md
+
+Do not create unnecessary repositories.
+
+# 4. BACKEND TECHNOLOGY
+
+Use:
+
+- Java 21
+- Spring Boot 3.x
+- Maven
+- Spring Web
+- Spring Security
+- Spring Data JPA
+- Hibernate
+- PostgreSQL
+- Flyway
+- Bean Validation
+- Redis
+- Spring Boot Actuator
+- Micrometer
+- OpenAPI/Swagger
+- Testcontainers
+- JUnit 5
+- Mockito
+
+Backend package structure:
+
+com.naztech.lending
+
+    common/
+    security/
+    auth/
+    organization/
+    user/
+    customer/
+    kyc/
+    account/
+    document/
+    product/
+    rules/
+    eligibility/
+    application/
+    workflow/
+    credit/
+    cib/
+    screening/
+    approval/
+    loan/
+    repayment/
+    collection/
+    npl/
+    notification/
+    integration/
+    reporting/
+    audit/
+
+Each domain module should use appropriate separation such as:
+
+controller/
+service/
+domain/
+repository/
+dto/
+mapper/
+validator/
+exception/
+
+Avoid unnecessary abstraction. Use clean, maintainable enterprise code.
+
+# 5. DATABASE SCHEMAS
+
+Use PostgreSQL logical schemas.
+
+Initial schemas:
+
+- auth
+- organization
+- customer
+- kyc
+- account
+- document
+- product
+- rules
+- application
+- workflow
+- credit
+- approval
+- loan
+- repayment
+- collection
+- notification
+- integration
+- audit
+
+Example:
+
+customer.t_customer
+customer.t_customer_address
+
+product.t_loan_product
+product.t_loan_product_version
+
+workflow.t_workflow_state
+workflow.t_workflow_transition
+
+loan.t_loan
+loan.t_loan_schedule
+
+audit.t_audit_log
+
+Do NOT create 100+ speculative tables at the beginning.
+
+Build the schema progressively as each domain is implemented.
+
+# 6. INFRASTRUCTURE
+
+Create Docker Compose for development containing at minimum:
+
+- PostgreSQL
+- Redis
+- MinIO
+- Spring Boot backend
+- Next.js web application
+
+Kafka should NOT be introduced in the first foundation milestone unless there is a demonstrated requirement.
+
+The system must start with:
+
+docker compose up
+
+and successfully establish:
+
+Flutter/Web -> Spring Boot -> PostgreSQL
+Spring Boot -> Redis
+Spring Boot -> MinIO
+
+# 7. AUTHENTICATION AND AUTHORIZATION
+
+Implement separate authentication concepts for:
+
+## Customer
+
+- Mobile number
+- Account number
+- 6-digit PIN
+- OTP
+- Device registration
+- Device binding
+- Biometric login
+- Forgot PIN
+- Change PIN
+- Failed attempt control
+- Account/device lock
+
+## Bank user
+
+- Username/employee ID
+- Password/PIN as configured
+- MFA
+- Role
+- Branch
+- Department
+- Permission scope
+
+## Field Officer
+
+- Employee ID/mobile
+- PIN/password
+- MFA
+- Device binding
+
+Implement RBAC.
+
+Create appropriate tables such as:
+
+- T_USER
+- T_ROLE
+- T_PERMISSION
+- T_USER_ROLE
+- T_ROLE_PERMISSION
+- T_USER_BRANCH
+- T_DEVICE
+- T_SESSION
+- T_LOGIN_HISTORY
+
+Use database-driven authorization.
+
+# 8. ORGANIZATION MANAGEMENT
+
+Admin must be able to configure:
+
+- Bank
+- Zone
+- Region
+- Branch
+- Department
+- Business Unit
+- Credit Unit
+- Personal Processing Centre
+- Credit Administration Department
+
+Branch-level and head-office-level authorization must be supported.
+
+Example:
+
+BM -> own branch
+SO -> assigned branch/branches
+HOCRM -> configured organization scope
+
+# 9. CUSTOMER MASTER
+
+Implement:
+
+- Customer ID
+- Customer type
+- Full name
+- Father name
+- Mother name
+- Spouse name
+- DOB
+- Gender
+- Nationality
+- NID
+- TIN
+- Passport
+- Driving licence
+- Marital status
+- Education
+- Residence status
+- Occupation
+- Designation
+- Employer
+- Address
+- Mobile
+- Email
+- Income
+- Source of income
+- Source of funds
+- Net worth
+- Existing liabilities
+- Customer risk profile
+
+Customer types should include:
+
+- Individual
+- Joint
+- Minor
+- Guardian
+- Authorized Person
+- Business
+- Sole Proprietor
+
+# 10. KYC / e-KYC
+
+Implement the existing-customer journey:
+
+Existing Customer
+    ->
+Account Number
+    ->
+CBS Account Validation
+    ->
+Mobile OTP
+    ->
+KYC Status
+
+If CBS KYC is already verified:
+
+Display verified KYC summary.
+
+If CBS KYC is not verified:
+
+NID Front
+    ->
+NID Back
+    ->
+Live Selfie
+    ->
+Face Match
+    ->
+Liveness
+    ->
+e-KYC Verification
+
+Create provider abstraction:
+
+IdentityVerificationProvider
+
+Development implementation:
+
+MockIdentityVerificationProvider
+
+The system must be designed so a real NID/e-KYC vendor can be integrated later without changing the core business flow.
+
+# 11. DOCUMENT MANAGEMENT
+
+Use MinIO/S3-compatible object storage.
+
+Documents include:
+
+- NID Front
+- NID Back
+- Passport
+- Photograph
+- Signature
+- Salary Certificate
+- Salary Slip
+- Bank Statement
+- Utility Bill
+- Trade Licence
+- TIN
+- Tax Return
+- Business Documents
+- Guarantor Documents
+- Collateral Documents
+- CIB Report
+- Sanction Letter
+- Other configured documents
+
+Database stores metadata, not large binary content.
+
+Metadata should include:
+
+- document_id
+- document_type
+- customer_id
+- application_id
+- storage_key
+- hash
+- MIME type
+- size
+- uploaded_by
+- uploaded_at
+- verification_status
+- version
+
+Support:
+
+- Upload
+- Preview
+- Download
+- Verification
+- Rejection
+- Replacement
+- Versioning
+- Audit
+
+# 12. NEW CUSTOMER ACCOUNT OPENING
+
+Support:
+
+Account product selection:
+
+- Savings Account
+- Current Account
+- Business Account
+- Student Account
+- Other configurable account products
+
+Customer type:
+
+- Individual
+- Joint
+- Minor
+- Guardian
+- Authorized Person
+- Business/Sole Proprietor
+
+Applicant information must support:
+
+- Full Name
+- Relationship to Account
+- Father's Name
+- Mother's Name
+- Spouse Name
+- Number of Children
+- Nationality
+- NID Number
+- TIN
+- Date of Birth
+- Place of Birth
+- Gender
+- Occupation
+- Designation
+- Passport Number
+- Passport Issue Date
+- Passport Expiry Date
+- Passport Issue Place
+- Driving Licence Number
+- Driving Licence Expiry Date
+- Marital Status
+- Education Level
+- Residence Status
+- Car Ownership
+
+Address and contact:
+
+- Present Address
+- Permanent Address
+- Same as Present
+- Occupational/Business Address
+- Country
+- District/State
+- City/Area
+- Postal Code
+- Residence Telephone
+- Office Telephone
+- Mobile Number
+- Email Address
+
+Occupation/business/financial:
+
+- Occupation Category
+- Employer/Organization
+- Designation
+- Nature of Business
+- Business Sector
+- Monthly/Annual Income
+- Household/Other Income
+- Source of Income
+- Source of Funds
+- Personal Net Worth
+- Company Net Worth
+- Net Worth Currency
+
+Account opening workflow:
+
+DRAFT
+ ->
+SUBMITTED
+ ->
+KYC_PENDING
+ ->
+KYC_VERIFIED
+ ->
+BANK_REVIEW
+ ->
+RETURNED
+ ->
+RESUBMITTED
+ ->
+APPROVED
+ ->
+CBS_ACCOUNT_CREATION
+ ->
+ACCOUNT_CREATED
+ ->
+CUSTOMER_NOTIFIED
+
+Account-opening applications must be stored separately from finalized customer/account records.
+
+# 13. LOAN PRODUCT CONFIGURATION ENGINE
+
+This is the first major business module.
+
+Admin must be able to create:
+
+- e-Loan
+- Quick Loan
+- Instant Loan
+- Personal Loan
+- Car Loan
+- Student Loan
+- Home Loan
+- SME/CMSME Loan
+- Credit Card
+
+Product master fields should include:
+
+- Product ID
+- Product Code
+- Product Name
+- Product Name Bangla
+- Product Type
+- Category
+- Description
+- Customer Segment
+- Customer Type
+- Secured/Unsecured
+- Currency
+- Minimum Amount
+- Maximum Amount
+- Minimum Tenure
+- Maximum Tenure
+- Interest/Profit Method
+- Interest Rate
+- Processing Fee
+- VAT
+- Insurance
+- Other Fees
+- Grace Period
+- Repayment Frequency
+- Collateral Requirement
+- Guarantor Requirement
+- Status
+- Effective From
+- Effective To
+
+# 14. PRODUCT VERSIONING
+
+Create product versioning.
+
+Example:
+
+eLoan
+    Version 1
+    Version 2
+    Version 3
+
+Each version must have effective dates and status.
+
+An application must reference the exact version used during evaluation.
+
+Never silently change live product configuration.
+
+# 15. ELIGIBILITY RULE ENGINE
+
+Create a generic rule engine.
+
+Rules must support:
+
+- Age
+- Income
+- Occupation
+- KYC status
+- Account status
+- Account age
+- Account balance
+- CIB
+- Existing loan
+- Existing overdue
+- DBR
+- Credit score
+- Risk grade
+- Employment duration
+- Transaction history
+- Customer type
+- Residence status
+- Geography
+- Other configurable attributes
+
+Operators:
+
+=
+!=
+>
+>=
+<
+<=
+IN
+NOT_IN
+BETWEEN
+
+Logical combinations:
+
+AND
+OR
+NOT
+
+Example:
+
+Age >= 21
+AND Age <= 60
+AND KYC = VERIFIED
+AND CIB = CLEAN
+AND Existing DPD = 0
+AND Monthly Income >= 20000
+
+The rule engine must support rule groups and priorities.
+
+Persist rule evaluation results for audit.
+
+# 16. ELIGIBILITY ENGINE
+
+Implement:
+
+POST /api/v1/eligibility/check
+
+Example response:
+
+{
+  "eligible": true,
+  "productId": "ELOAN",
+  "maxAmount": 50000,
+  "recommendedAmount": 35000,
+  "availableTenures": [3, 6, 9, 12],
+  "interestRate": 9.0,
+  "riskGrade": "A"
+}
+
+Do not hard-code these values.
+
+They must come from product/rule configuration.
+
+Persist:
+
+- eligibility result
+- rule results
+- evaluated product version
+- timestamp
+- input snapshot or auditable evaluation context
+
+# 17. LOAN AMOUNT ENGINE
+
+Do not use a single hard-coded maximum.
+
+Support:
+
+Final Eligible Amount =
+MIN(
+    Product Maximum,
+    Income Based Limit,
+    Credit Score Limit,
+    Existing Exposure Limit,
+    Regulatory Limit,
+    Customer Segment Limit
+)
+
+The engine must explain why a limit was produced.
+
+Example:
+
+Product max = 50,000
+Income limit = 40,000
+Risk limit = 35,000
+Existing exposure limit = 30,000
+
+Final eligible amount = 30,000
+
+Store decision factors for audit.
+
+# 18. CREDIT SCORE / RISK SCORE FOUNDATION
+
+Phase 1 should provide configurable scorecard infrastructure.
+
+Support weighted factors such as:
+
+- Account history
+- Income
+- Repayment history
+- CIB
+- Transaction behavior
+- Customer profile
+
+Example:
+
+800–1000 -> A
+700–799 -> B
+600–699 -> C
+<600 -> Reject
+
+Do not build an ML model initially.
+
+Create interfaces so ML scoring can be added later.
+
+# 19. INTEREST / PRICING ENGINE
+
+Support:
+
+- Flat rate
+- Reducing balance
+- Effective rate
+- Risk-grade based pricing
+- Tenure-based pricing
+- Product-based pricing
+- Promotional rate
+- Processing fee
+- VAT
+- Insurance
+- Late payment charge
+- Penalty interest
+
+Use BigDecimal.
+
+The backend is authoritative.
+
+# 20. LOAN CALCULATOR
+
+Create backend API:
+
+POST /api/v1/loan-calculator
+
+Inputs:
+
+- Product
+- Amount
+- Tenure
+- Applicable rate
+
+Outputs:
+
+- Principal
+- Interest
+- Fees
+- VAT
+- Insurance
+- Total payable
+- EMI
+- Net disbursement
+
+Implement unit tests for all calculation types and rounding rules.
+
+Flutter may display an indicative result but the backend result is authoritative.
+
+# 21. LOAN APPLICATION
+
+Implement:
+
+- T_LOAN_APPLICATION
+- T_LOAN_APPLICATION_APPLICANT
+- T_LOAN_APPLICATION_FINANCIAL
+- T_LOAN_APPLICATION_PURPOSE
+- T_LOAN_APPLICATION_DOCUMENT
+- T_LOAN_APPLICATION_STATUS
+- T_LOAN_APPLICATION_STATUS_HISTORY
+- T_LOAN_APPLICATION_COMMENT
+- T_LOAN_APPLICATION_QUERY
+- T_LOAN_APPLICATION_QUERY_RESPONSE
+
+Customer journey:
+
+Eligibility
+ ->
+Product
+ ->
+Amount
+ ->
+Tenure
+ ->
+Purpose
+ ->
+Financial Information
+ ->
+Documents
+ ->
+Disbursement Account
+ ->
+Review
+ ->
+Sanction Letter
+ ->
+Digital Consent
+ ->
+Submit
+
+Loan purposes must be configurable, initially supporting:
+
+- Emergency
+- Education
+- Business
+- Medical
+- Travel
+- Personal
+
+# 22. FIELD OFFICER APPLICATIONS
+
+Field Officers can apply on behalf of existing customers.
+
+Every application must record:
+
+source_channel = FIELD_OFFICER
+field_officer_id
+
+Field Officer may:
+
+- Search customer
+- Verify customer
+- Select product
+- Check eligibility
+- Fill application
+- Capture documents
+- Capture customer consent
+- Submit
+
+Field Officer may NOT:
+
+- Approve
+- Change product rules
+- Change eligibility rules
+- Override credit decisions
+- Modify approval limits
+- Disburse
+
+# 23. WORKFLOW ENGINE
+
+Implement the supplied six-step workflow.
+
+## Step 01 — Origination
+
+FO_CREATED
+ ->
+FO_SUBMITTED
+ ->
+SO_CREATED
+ ->
+SO_UPDATED
+ ->
+SO_RECOMMENDED
+
+Editing by SO is optional, so SO_CREATED may proceed directly to SO_RECOMMENDED.
+
+## Step 02 — Branch Approval
+
+Exactly one of:
+
+BM_RECOMMENDED
+BOM_RECOMMENDED
+PPC_RECOMMENDED
+
+then:
+
+MIS_RECEIVED
+
+Return:
+
+BM_RETURNED
+ ->
+SO_CREATED
+
+## Step 03 — Head Office MIS
+
+MIS_RECEIVED
+ ->
+MIS_ALLOCATED
+
+MIS can dispatch parallel activities:
+
+SENT_TO_CIB
+MAILED_TO_POLICE
+SENT_TO_CAD
+
+NID verification and sanction screening run alongside these processes.
+
+## Step 04 — Credit Analysis
+
+CA_RECEIVED
+ ->
+CA_UPDATED
+ ->
+CA_SEND_QUERY
+ ->
+CA_CONDITION_FULFILLED
+ ->
+CA_RECOMMENDED
+
+Return:
+
+CA_RETURNED
+ ->
+SO_CREATED
+
+Queries must retain original questions and responses in the audit trail.
+
+## Step 05 — Delegated Approval
+
+RM
+ ->
+UH
+ ->
+HOCRM
+ ->
+CEO/MD
+
+depending on configurable sanctioning limits.
+
+Each approval tier must support:
+
+- Approve
+- Approve with condition
+- Escalate
+
+## Step 06 — Disbursement
+
+CAD_DISBURSE
+ ->
+SEND_TO_CBS
+ ->
+CBS_SUCCESS
+ ->
+SMS_SENT
+ ->
+CLOSED
+
+External CBS interaction must support retry, timeout, idempotency and reconciliation.
+
+# 24. WORKFLOW AUTHORIZATION
+
+Implement:
+
+T_ROLE_STATE_MAP
+T_STATE_RECOMMEND_RETURN_MAP
+
+These tables are authoritative for role/state permissions and legal workflow transitions.
+
+Do NOT hard-code role names inside workflow business logic.
+
+For example, do not write:
+
+if (role.equals("BM")) { ... }
+
+Instead query configured role/state/transition permissions.
+
+The UI should request available actions from the backend.
+
+Example:
+
+GET /api/v1/loan-applications/{id}/available-actions
+
+Possible response:
+
+{
+  "actions": [
+    "VIEW",
+    "EDIT",
+    "RETURN",
+    "RECOMMEND"
+  ]
+}
+
+# 25. ROLES
+
+Support:
+
+FO = Field Officer
+SO = Sourcing Officer
+BM = Branch Manager
+BOM = Branch Operations Manager
+PPC = Personal Processing Centre
+MIS = Management Information System
+CA = Credit Analyst
+RM = Relationship Manager
+UH = Unit Head
+HOCRM = Head of Credit Risk Management
+CEO = Chief Executive
+MD = Managing Director
+CAD = Credit Administration Department
+
+Roles should be configurable in the authorization system.
+
+# 26. CREDIT ANALYSIS
+
+CA workspace must display:
+
+- Customer
+- KYC
+- Income
+- Expenses
+- Existing liabilities
+- Existing loans
+- DBR
+- CIB
+- Security
+- Guarantor
+- Risk grade
+- Screening
+- Documents
+
+CA actions:
+
+- Update
+- Query
+- Recommend
+- Return
+
+Credit analysis must retain history and audit trail.
+
+# 27. CIB
+
+Create provider abstraction:
+
+CIBProvider
+
+Development:
+
+MockCibProvider
+
+Store:
+
+- CIB request
+- CIB response
+- Existing liabilities
+- Existing loans
+- Classification
+- CIB report
+- Errors
+
+Do not tightly couple the core lending engine to a specific CIB vendor.
+
+# 28. SCREENING
+
+Support:
+
+- NID verification
+- Sanction screening
+- PEP
+- Adverse media where applicable
+- Internal blacklist
+- Fraud database
+- Duplicate customer
+- Duplicate application
+- Existing loan check
+
+Use provider abstractions.
+
+# 29. APPROVAL ENGINE
+
+Approval authority must be configurable by:
+
+- Amount
+- Product
+- Risk grade
+- Customer segment
+- Branch
+- Business unit
+- Other configured criteria
+
+Example only:
+
+<= 50K -> RM
+>50K–500K -> UH
+>500K–5M -> HOCRM
+>5M -> CEO/MD
+
+These values are examples only and must NOT be hard-coded.
+
+Create:
+
+- T_APPROVAL_MATRIX
+- T_APPROVAL_TIER
+- T_APPROVAL_LIMIT
+- T_APPROVAL_PRODUCT
+- T_APPROVAL_ROLE
+- T_APPROVAL_DELEGATION
+- T_APPROVAL_HISTORY
+- T_APPROVAL_CONDITION
+
+# 30. CONDITIONAL APPROVAL
+
+Support approve-with-condition.
+
+Example:
+
+Condition:
+Submit updated salary certificate before disbursement.
+
+Conditions must travel with the loan to CAD and must be visible/auditable.
+
+# 31. GROUP APPROVAL
+
+Implement:
+
+- T_LOAN_GROUP
+- T_LOAN_GROUP_MEMBER
+- T_LOAN_GROUP_ACTION
+- T_LOAN_GROUP_APPROVAL
+- T_LOAN_GROUP_HISTORY
+
+Several individually appraised loans can be grouped:
+
+Loan 1
+Loan 2
+Loan 3
+    ->
+CREATE_LOAN_GROUP
+    ->
+BULK_HOCRM_SEND_TO_MD
+
+or:
+
+CREATE_LOAN_GROUP
+    ->
+BULK_HOCRM_SEND_TO_CAD
+
+Each loan must retain its own:
+
+- Loan ID
+- Documents
+- Comments
+- Approval history
+- Audit history
+- Repayment
+- Account
+
+The group is the decision unit, not the replacement for the individual loan record.
+
+# 32. DISBURSEMENT
+
+CAD workspace:
+
+- Ready for disbursement
+- Conditions
+- Disbursement validation
+- CBS request
+- CBS response
+- Retry
+- Reconciliation
+
+Flow:
+
+CAD_DISBURSE
+ ->
+Create disbursement request
+ ->
+SEND_TO_CBS
+ ->
+CBS response
+ ->
+CBS_SUCCESS
+ ->
+Receive live CBS loan/account number
+ ->
+Update loan
+ ->
+Send notification
+ ->
+CLOSED
+
+Use:
+
+- correlation ID
+- request ID
+- idempotency key
+- retry policy
+- timeout
+- reconciliation status
+
+# 33. LOAN MANAGEMENT
+
+Create:
+
+- T_LOAN
+- T_LOAN_CUSTOMER
+- T_LOAN_DISBURSEMENT
+- T_LOAN_ACCOUNT
+- T_LOAN_SCHEDULE
+- T_LOAN_SCHEDULE_DETAIL
+- T_LOAN_REPAYMENT
+- T_LOAN_REPAYMENT_ALLOCATION
+- T_LOAN_CHARGE
+- T_LOAN_INTEREST
+- T_LOAN_BALANCE
+- T_LOAN_SETTLEMENT
+- T_LOAN_CLOSURE
+
+# 34. REPAYMENT
+
+Support:
+
+- Bank account
+- bKash
+- Nagad
+- Rocket
+- Payment gateway
+- Auto-debit
+
+Payment lifecycle:
+
+INITIATED
+ ->
+PROCESSING
+ ->
+SUCCESS / FAILED
+ ->
+RECONCILED
+
+Also support:
+
+- Retry
+- Reversal
+- Duplicate callback handling
+- Idempotency
+- Receipt
+
+# 35. REPAYMENT ALLOCATION
+
+Make allocation configurable.
+
+Possible waterfall:
+
+Penalty
+ ->
+Fees
+ ->
+Interest
+ ->
+Principal
+
+or product-specific alternatives.
+
+Do not hard-code one waterfall globally.
+
+# 36. CUSTOMER LOAN MANAGEMENT
+
+Customer should see:
+
+- Outstanding balance
+- Monthly EMI
+- Next due date
+- Months remaining
+- Repayment progress
+- Loan status
+- Loan history
+
+# 37. DPD / NPL ENGINE
+
+Create scheduled processing.
+
+Daily process:
+
+Calculate due
+ ->
+Calculate DPD
+ ->
+Update loan
+ ->
+Generate alerts
+ ->
+Update classification
+ ->
+Create collection queue
+
+Create configurable:
+
+- T_DPD_RULE
+- T_LOAN_CLASSIFICATION_RULE
+- T_NPL_ALERT_RULE
+
+Do not hard-code regulatory classification thresholds.
+
+Operational collection alerts and regulatory classification must be separate concepts.
+
+# 38. COLLECTION
+
+Support:
+
+- Collection queue
+- Collector assignment
+- DPD buckets
+- Customer contact
+- Call log
+- Visit
+- Promise to Pay
+- Follow-up
+- SMS
+- Collection note
+- Recovery
+- Settlement
+- Escalation
+
+# 39. NOTIFICATION ENGINE
+
+Support:
+
+- Push
+- SMS
+- Email
+- In-app
+
+Create:
+
+- T_NOTIFICATION_TEMPLATE
+- T_NOTIFICATION_EVENT
+- T_NOTIFICATION_QUEUE
+- T_NOTIFICATION_LOG
+
+Events:
+
+- Application submitted
+- Application returned
+- Query raised
+- Query answered
+- Loan approved
+- Loan rejected
+- Sanction letter
+- Disbursement
+- EMI due
+- EMI due tomorrow
+- EMI overdue
+- NPL alert
+- Payment success
+- Payment failure
+- Loan closed
+
+Support English and Bangla.
+
+# 40. CUSTOMER FLUTTER APP
+
+Use:
+
+- Flutter
+- Dart
+- Riverpod
+- Dio
+- GoRouter
+- Freezed
+- JSON serialization
+- Flutter Secure Storage
+
+Customer screens:
+
+- Splash
+- Language
+- Login
+- OTP
+- PIN
+- Biometric
+- Registration
+- Existing Customer
+- New Customer
+- e-KYC
+- Dashboard
+- Eligibility
+- Loan Products
+- Loan Calculator
+- Loan Application
+- Documents
+- Review
+- Digital Consent
+- Sanction Letter
+- My Loans
+- Loan Details
+- Repayment
+- Payment
+- Statement
+- Notifications
+- Profile
+- Security
+- Help
+
+Dashboard:
+
+- Full name
+- Personalized greeting
+- Account status
+- Language switch
+- Credit limit gauge
+- Used credit
+- Available credit
+- Loan summary
+- Next EMI
+- Outstanding
+- Quick Actions
+
+Quick Actions:
+
+- Apply e-Loan
+- My Loans
+- Repayment
+- Statement
+
+# 41. FIELD OFFICER FLUTTER APP
+
+Use the same technical foundation where practical but keep separate app-level permissions and navigation.
+
+Screens:
+
+- Login
+- Dashboard
+- Customer Search
+- Customer Details
+- New Loan Application
+- Credit Card Application
+- Documents
+- NID Capture
+- Customer Consent
+- Review
+- Submit
+- My Applications
+- Application Status
+
+Every application must store the Field Officer attribution.
+
+# 42. NEXT.JS BANK BACK OFFICE
+
+Use:
+
+- Next.js
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- TanStack Query
+- React Hook Form
+- Zod
+- AG Grid or TanStack Table
+- Recharts/ECharts as appropriate
+
+Admin sections:
+
+- Dashboard
+- Users
+- Roles
+- Branches
+- Products
+- Product Versions
+- Rules
+- Eligibility
+- Workflow
+- Approval Matrix
+- Documents
+- Notifications
+- System Configuration
+- Audit
+
+Loan Processing:
+
+- Application Queue
+- Returned
+- Pending
+- Approved
+- Rejected
+- Disbursed
+- Loan Detail
+
+Credit:
+
+- Credit Queue
+- Credit Analysis
+- CIB
+- Screening
+- Queries
+
+Approval:
+
+- Approval Queue
+- Approval
+- Conditional Approval
+- Escalation
+- Group Approval
+- Approval History
+
+CAD:
+
+- Disbursement Queue
+- CBS
+- Retry
+- Reconciliation
+
+Collection:
+
+- Collection Dashboard
+- Overdue
+- NPL
+- Recovery
+
+# 43. LOAN DETAIL PAGE
+
+Provide one comprehensive loan file view with tabs:
+
+- Overview
+- Customer
+- KYC
+- Documents
+- Financial
+- CIB
+- Screening
+- Credit Analysis
+- Queries
+- Approval
+- Conditions
+- Disbursement
+- Repayment
+- Collections
+- Audit Trail
+
+Header:
+
+- Application number
+- Loan ID
+- Customer
+- Product
+- Requested amount
+- Approved amount
+- Current state
+- DPD
+- Risk grade
+- Branch
+- Officer
+
+# 44. API-FIRST DESIGN
+
+Before implementing complex UI, ensure backend APIs exist.
+
+The frontend must consume the APIs.
+
+Do not duplicate business logic between Next.js and Spring Boot.
+
+Use generated OpenAPI types/client where practical.
+
+# 45. AUDIT TRAIL
+
+Every important action must record:
+
+- Who
+- Role
+- What
+- When
+- IP
+- Device
+- Before value
+- After value
+- Reason
+- Application ID
+- Loan ID
+- State before
+- State after
+- Correlation ID
+
+Audit:
+
+- Workflow transitions
+- Approval
+- Return
+- Query
+- Customer changes
+- KYC
+- Documents
+- Product configuration
+- Rule changes
+- Approval matrix changes
+- User permission changes
+- Disbursement
+- Repayment
+- NPL changes
+
+# 46. SECURITY
+
+Implement:
+
+Backend:
+- Spring Security
+- MFA
+- Rate limiting
+- Brute-force protection
+- JWT security
+- Refresh token security
+- Authorization
+- Input validation
+- File validation
+- CORS
+- Security headers
+- Secrets management
+- Encryption where required
+
+Mobile:
+- Secure storage
+- Device binding
+- Biometric authentication
+- Screenshot/screen-recording restrictions on sensitive screens where technically supported
+- App integrity controls as appropriate
+
+Never log:
+- PIN
+- Password
+- OTP
+- Sensitive authentication secrets
+
+# 47. EXTERNAL INTEGRATION ARCHITECTURE
+
+Create provider interfaces:
+
+- CBSProvider
+- IdentityVerificationProvider
+- CIBProvider
+- SanctionScreeningProvider
+- PoliceVerificationProvider
+- MfsProvider
+- PaymentProvider
+- SmsProvider
+- EmailProvider
+
+Create mock providers for development.
+
+External integration must support:
+
+- Timeout
+- Retry
+- Idempotency
+- Request ID
+- Correlation ID
+- Error handling
+- Reconciliation
+- Manual retry where appropriate
+
+Do not allow an external integration failure to corrupt the transactional state.
+
+# 48. OUTBOX / ASYNC PROCESSING
+
+For operations that require reliable external processing, use an outbox/event pattern.
+
+Example:
+
+Loan approved
+ ->
+Database transaction
+ ->
+Outbox event
+ ->
+Integration worker
+ ->
+CBS
+ ->
+Response
+ ->
+Reconciliation
+
+Do not make external HTTP calls inside a long database transaction when avoidable.
+
+Kafka may be introduced later.
+
+# 49. REPORTING
+
+Initial reports:
+
+Origination:
+- Applications by product
+- Applications by branch
+- Applications by officer
+- Approval rate
+- Rejection rate
+- Turnaround time
+
+Credit:
+- CIB pending
+- Screening pending
+- Query aging
+- CA productivity
+
+Approval:
+- Pending approval
+- Approval by tier
+- Escalation
+- Conditional approval
+
+Disbursement:
+- Approved
+- Pending
+- Disbursed
+- CBS failures
+
+Portfolio:
+- Outstanding
+- EMI
+- DPD
+- SMA
+- NPL
+- Recovery
+
+# 50. OBSERVABILITY
+
+Use:
+
+- Spring Boot Actuator
+- Micrometer
+- Prometheus
+- Grafana
+- Loki
+
+Track:
+
+- API latency
+- Error rate
+- JVM
+- CPU
+- Memory
+- DB connection pool
+- Redis
+- Workflow failures
+- CBS failures
+- Payment failures
+- Scheduled job failures
+- Integration failures
+
+Every request must have a correlation_id.
+
+# 51. TESTING
+
+Do not move to the next milestone with failing tests.
+
+Backend:
+
+- Unit tests
+- Repository tests
+- Integration tests
+- API tests
+- Workflow tests
+- Rule-engine tests
+- Calculation tests
+
+Critical scenarios:
+
+- Eligibility pass
+- Eligibility fail
+- Minimum loan
+- Maximum loan
+- EMI calculation
+- Interest calculation
+- Workflow forward
+- Workflow return
+- BM recommendation
+- BOM recommendation
+- PPC recommendation
+- CA query
+- CA response
+- CA return
+- RM approval
+- RM escalation
+- UH approval
+- HOCRM approval
+- Conditional approval
+- Group approval
+- CBS success
+- CBS timeout
+- CBS failure
+- Duplicate CBS response
+- Payment success
+- Payment failure
+- Payment reversal
+- DPD calculation
+- Classification
+- NPL alert
+
+# 52. PERFORMANCE TESTING
+
+Use k6 or an equivalent load-testing framework.
+
+Test:
+
+- Login
+- Eligibility
+- Loan calculator
+- Loan application submission
+- Dashboard
+- Loan search
+- Approval
+- Repayment
+- Collection queue
+
+Establish measurable performance targets and document them.
+
+# 53. DEVELOPMENT MILESTONES
+
+Implement in this exact order:
+
+01. Repository and architecture
+02. Docker infrastructure
+03. PostgreSQL + Flyway
+04. Spring Boot foundation
+05. Authentication
+06. RBAC
+07. Organization
+08. Customer
+09. Document management
+10. KYC abstraction
+11. Account products
+12. Account opening
+13. Loan product configuration
+14. Product versioning
+15. Rule engine
+16. Eligibility engine
+17. Loan calculator
+18. Loan application
+19. Workflow engine
+20. Credit analysis
+21. CIB abstraction
+22. Screening abstraction
+23. Approval engine
+24. Conditional approval
+25. Group approval
+26. Disbursement
+27. CBS abstraction
+28. Repayment
+29. DPD
+30. NPL
+31. Collections
+32. Notifications
+33. Customer Flutter app
+34. Field Officer Flutter app
+35. Next.js Admin
+36. Next.js Loan Processing
+37. Next.js Credit/Approval
+38. Next.js CAD
+39. Reporting
+40. Audit
+41. Security hardening
+42. Integration testing
+43. Performance testing
+44. Production deployment
+
+# 54. FIRST PRODUCT
+
+Implement e-Loan first.
+
+Initial configurable example:
+
+Product:
+e-Loan
+
+Currency:
+BDT
+
+Minimum:
+5,000
+
+Maximum:
+50,000
+
+Tenure:
+3–12 months
+
+IMPORTANT:
+These are initial product configuration values, not hard-coded business rules.
+
+The Admin Portal must be able to change them through product configuration/versioning.
+
+# 55. FIRST COMPLETE VERTICAL SLICE
+
+The first complete end-to-end slice must be:
+
+Customer
+ ->
+Login
+ ->
+KYC
+ ->
+Eligibility
+ ->
+e-Loan selection
+ ->
+Calculator
+ ->
+Application
+ ->
+Documents
+ ->
+Digital Consent
+ ->
+FO/SO
+ ->
+Branch
+ ->
+MIS
+ ->
+CIB/Screening
+ ->
+CA
+ ->
+Approval
+ ->
+CAD
+ ->
+CBS
+ ->
+Disbursement
+ ->
+Loan Account
+ ->
+Repayment Schedule
+ ->
+Customer Dashboard
+ ->
+EMI Payment
+ ->
+DPD
+ ->
+Collection/NPL
+
+Do not implement many disconnected UI screens without completing the backend flow.
+
+# 56. DEFINITION OF DONE
+
+A milestone is complete only when:
+
+1. Code compiles.
+2. Database migration succeeds from a clean database.
+3. Unit tests pass.
+4. Integration tests pass.
+5. APIs are documented.
+6. Authorization is enforced.
+7. Audit records are created where required.
+8. Error handling is implemented.
+9. Frontend is connected to real backend APIs.
+10. No business logic is duplicated unnecessarily.
+11. Documentation is updated.
+12. Docker development environment works.
+13. No known critical errors remain.
+
+# 57. DOCUMENTATION REQUIREMENT
+
+Maintain:
+
+/docs/architecture/architecture.md
+/docs/database/database-design.md
+/docs/api/api-specification.md
+/docs/workflows/workflow.md
+/docs/product/product-configuration.md
+/docs/product/eligibility-engine.md
+/docs/product/approval-engine.md
+/docs/product/repayment-engine.md
+/docs/product/npl-engine.md
+/docs/security/security.md
+/docs/deployment/deployment.md
+/docs/testing/testing.md
+
+Update these documents as implementation progresses.
+
+# 58. CLAUDE WORKING METHOD
+
+Do NOT attempt to implement the entire system in one operation.
+
+For every milestone:
+
+1. Inspect the repository.
+2. Review existing implementation.
+3. Identify dependencies.
+4. State the intended implementation plan.
+5. Implement database migrations.
+6. Implement backend.
+7. Implement tests.
+8. Run tests.
+9. Fix failures.
+10. Implement frontend.
+11. Run frontend tests/build.
+12. Update documentation.
+13. Provide a concise implementation report.
+14. Stop and wait before beginning the next major milestone unless explicitly instructed to continue.
+
+Do not overwrite working code unnecessarily.
+
+Do not introduce dependencies without justification.
+
+Do not create speculative abstractions.
+
+Do not create speculative database tables.
+
+Prefer simple, maintainable, production-grade implementations.
+
+# 59. MILESTONE REPORT FORMAT
+
+After every milestone, report:
+
+## Implemented
+List what was completed.
+
+## Files Created/Modified
+List important files.
+
+## Database
+List migrations and tables.
+
+## APIs
+List APIs added/changed.
+
+## Tests
+List tests added and execution results.
+
+## Frontend
+List screens/components implemented.
+
+## Security
+List authorization/security controls added.
+
+## Documentation
+List documentation updated.
+
+## Remaining Work
+List what remains.
+
+## Risks / Decisions
+List anything that requires architectural or business clarification.
+
+# 60. START HERE
+
+Start ONLY with Milestone 1:
+
+- Repository structure
+- Architecture documentation
+- Docker Compose
+- PostgreSQL
+- Flyway
+- Redis
+- MinIO
+- Spring Boot foundation
+- Next.js foundation
+- Flutter Customer App foundation
+- Flutter Field Officer App foundation
+- Basic health checks
+- Basic connectivity tests
+- README
+- Development setup documentation
+
+Do NOT start loan business functionality in Milestone 1.
+
+At the end of Milestone 1, run all available tests/builds and report the result.
+
+Then stop and wait for the next instruction.

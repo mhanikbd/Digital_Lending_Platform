@@ -1,0 +1,20 @@
+# Scrapes the backend over the internal container network. The management port
+# is never published to the host, so metrics are not reachable from outside.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    platform: digital-lending
+    environment: development
+
+scrape_configs:
+  - job_name: digital-lending-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["backend:9091"]
+        labels:
+          service: digital-lending-api
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

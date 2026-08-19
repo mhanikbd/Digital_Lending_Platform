@@ -1,0 +1,256 @@
+@import "tailwindcss";
+
+/*
+ * Three themes, switched at runtime by a data-theme attribute on <html>.
+ *
+ * Components never name a colour. They use the semantic tokens below, so a
+ * theme is a palette swap and not a second set of class names. `@theme inline`
+ * makes each utility reference the custom property directly rather than baking
+ * the value in, which is what lets the switch take effect without a reload.
+ */
+@custom-variant theme-dark ([data-theme="dark"] &);
+@custom-variant theme-light ([data-theme="light"] &);
+@custom-variant theme-green ([data-theme="green"] &);
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Sign-in panel surfaces */
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-field: var(--field);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+
+  /* Primary action */
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-ink: var(--brand-ink);
+
+  /* Hero panel */
+  --color-hero-ink: var(--hero-ink);
+  --color-hero-muted: var(--hero-muted);
+  --color-hero-accent: var(--hero-accent);
+  --color-hero-faint: var(--hero-faint);
+}
+
+
+/*
+ * Short-viewport variants. A 1366x768 laptop is the case that actually bites:
+ * plenty of width, not enough height. These let the page drop supporting copy
+ * rather than grow a scrollbar.
+ */
+@custom-variant short (@media (max-height: 780px));
+@custom-variant tiny (@media (max-height: 640px));
+
+/*
+ * Fluid type and spacing.
+ *
+ * The scale is weighted towards vh because height is what runs out first — the
+ * sign-in column is a tall stack and the viewport is what it has to fit inside.
+ * A little vw keeps it from looking undersized on wide-but-short screens. Each
+ * clamp tops out at the size the design was drawn at, so a desktop still gets
+ * the intended 3x brand title.
+ */
+:root {
+  --fs-logo: clamp(1.25rem, 0.5rem + 2.2vh + 0.9vw, 3rem);
+  --fs-logo-note: clamp(0.58rem, 0.4rem + 0.5vh + 0.2vw, 0.875rem);
+  /* Halved from the original 3.375rem/2.25rem pair, floors included. */
+  --fs-brand: clamp(1rem, 0.3rem + 1.3vh + 0.55vw, 1.6875rem);
+  --fs-brand-sub: clamp(0.8rem, 0.2rem + 0.85vh + 0.35vw, 1.125rem);
+  --fs-hero: clamp(1.75rem, 0.5rem + 3vh + 1.1vw, 3.75rem);
+  --fs-hero-lead: clamp(0.875rem, 0.4rem + 1vh + 0.35vw, 1.125rem);
+
+  --pad-panel: clamp(1.25rem, 2.6vh + 0.9vw, 4rem);
+  --gap-stack: clamp(0.5rem, 2.4vh, 2.5rem);
+  --gap-tight: clamp(0.35rem, 1.3vh, 1.25rem);
+  --pad-field: clamp(0.625rem, 1.4vh, 1rem);
+}
+
+/* ---- Dark: the original palette, kept as the default ------------------- */
+:root,
+[data-theme="dark"] {
+  --canvas: #0f172a;
+  --panel: #0b1220;
+  --field: #020617;
+  --line: #1e293b;
+  --ink: #f1f5f9;
+  --ink-muted: #94a3b8;
+  --ink-subtle: #64748b;
+
+  --brand: #2563eb;
+  --brand-strong: #4f46e5;
+  --brand-ink: #ffffff;
+
+  --hero-from: #020617;
+  --hero-mid: #020b1f;
+  --hero-to: #172554;
+  --hero-ink: #ffffff;
+  --hero-muted: #94a3b8;
+  --hero-accent: #93c5fd;
+  --hero-faint: #475569;
+
+  --viz-line: #60a5fa;
+  --viz-node: #60a5fa;
+  --viz-label: #93c5fd;
+  --viz-node-fill: #0b1220;
+  --viz-core: #3b82f6;
+  --viz-emblem: #93c5fd;
+  /* The NPL branch is deliberately off-palette: it is the one edge that means trouble. */
+  --viz-warn: #fbbf24;
+}
+
+/* ---- Light: white, for a bright office --------------------------------- */
+[data-theme="light"] {
+  --canvas: #ffffff;
+  --panel: #f8fafc;
+  --field: #ffffff;
+  --line: #e2e8f0;
+  --ink: #0f172a;
+  --ink-muted: #475569;
+  --ink-subtle: #94a3b8;
+
+  --brand: #2563eb;
+  --brand-strong: #4f46e5;
+  --brand-ink: #ffffff;
+
+  --hero-from: #ffffff;
+  --hero-mid: #eef2ff;
+  --hero-to: #dbeafe;
+  --hero-ink: #0f172a;
+  --hero-muted: #475569;
+  --hero-accent: #2563eb;
+  --hero-faint: #64748b;
+
+  --viz-line: #3b82f6;
+  --viz-node: #2563eb;
+  --viz-label: #64748b;
+  --viz-node-fill: #ffffff;
+  --viz-core: #60a5fa;
+  --viz-emblem: #1d4ed8;
+  --viz-warn: #b45309;
+}
+
+/* ---- Green: sampled from the NRBC Bank lending site --------------------
+   Deep forest green through to the lighter green of the hero's lower right,
+   with the mint the headline uses for its second line, and the two greens of
+   the wordmark for the primary action.                                    */
+[data-theme="green"] {
+  --canvas: #ffffff;
+  --panel: #f1f7f2;
+  --field: #ffffff;
+  --line: #d4e6da;
+  --ink: #0b3b26;
+  --ink-muted: #4a7059;
+  --ink-subtle: #8aa896;
+
+  --brand: #0f6b38;
+  --brand-strong: #00a651;
+  --brand-ink: #ffffff;
+
+  --hero-from: #0a3a24;
+  --hero-mid: #14663a;
+  --hero-to: #3faa5f;
+  --hero-ink: #ffffff;
+  --hero-muted: #cfe8d8;
+  --hero-accent: #a5e4b5;
+  --hero-faint: #5b8f6e;
+
+  --viz-line: #7fd69b;
+  --viz-node: #a5e4b5;
+  --viz-label: #a5e4b5;
+  --viz-node-fill: #0a3a24;
+  --viz-core: #3faa5f;
+  --viz-emblem: #a5e4b5;
+  --viz-warn: #fcd34d;
+}
+
+/* The hero's diagonal wash. A plain class because the three stops are one
+   idea, and spelling them out as arbitrary utilities reads far worse. */
+.hero-surface {
+  background-image: linear-gradient(
+    135deg,
+    var(--hero-from) 0%,
+    var(--hero-mid) 52%,
+    var(--hero-to) 100%
+  );
+}
+
+/*
+ * Only typography belongs here. Colour is set with utilities on <body> in the
+ * root layout: a bare `body { background: ... }` rule is unlayered, so it would
+ * outrank every Tailwind utility regardless of specificity and silently win.
+ */
+body {
+  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ---- Lifecycle diagram motion ------------------------------------------
+ * The diagram shows a flow, so it moves like one. A short dash runs along
+ * each edge in the direction a loan file actually travels.
+ *
+ * Every animated path carries pathLength="100", which normalises its length
+ * to 100 user units whatever its real geometry. One set of keyframes then
+ * drives edges of completely different lengths at the same apparent speed,
+ * with no per-path arithmetic.
+ */
+@keyframes dlp-run {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* The conditional branch uses a dash pattern four times the path length, so its
+ * offset has to sweep that whole pattern - not just the path - or the comet
+ * never leaves the start of the edge. */
+@keyframes dlp-run-conditional {
+  from { stroke-dashoffset: 400; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes dlp-pulse {
+  0%, 100% { opacity: 0.18; }
+  50% { opacity: 0.55; }
+}
+
+/* The healthy path and the inbound channels: a continuous train, because a
+   lending book always has many files in flight at once. */
+.dlp-flow {
+  stroke-dasharray: 11 89;
+  animation: dlp-run var(--dlp-duration, 4.5s) linear infinite;
+  animation-delay: var(--dlp-delay, 0s);
+}
+
+/* The NPL branch. The dash pattern is far longer than the path, so the comet
+   is off the edge for most of the cycle: the branch is taken only by loans
+   that miss two instalments, and it should not look like the default route. */
+.dlp-flow-conditional {
+  stroke-dasharray: 9 391;
+  animation: dlp-run-conditional var(--dlp-duration, 16s) linear infinite;
+  animation-delay: var(--dlp-delay, 0s);
+}
+
+.dlp-halo {
+  animation: dlp-pulse 4.5s ease-in-out infinite;
+  animation-delay: var(--dlp-delay, 0s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dlp-flow,
+  .dlp-flow-conditional,
+  .dlp-halo {
+    animation: none;
+  }
+  /* Without motion the edge still has to read as an edge, so the dash is
+     dropped rather than left frozen mid-gap. */
+  .dlp-flow,
+  .dlp-flow-conditional {
+    stroke-dasharray: none;
+    opacity: 0.45;
+  }
+  .dlp-halo {
+    opacity: 0.3;
+  }
+}
