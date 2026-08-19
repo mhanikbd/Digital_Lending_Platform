@@ -168,6 +168,160 @@ who banks here.
 deliberately no roles or scopes, which arrive with Milestone 6. Revocation acts
 on the refresh token, which is opaque and server-side.
 
+
+### Access administration
+
+Guarded by permission, not by role. A bank that decides its Unit Heads may
+read the role catalogue inserts one row in `auth.t_role_permission`; nothing
+here changes.
+
+| Method | Path | Permission required |
+| ------ | ---- | ------------------- |
+| GET | `/api/v1/admin/roles` | `admin.role.view` |
+| GET | `/api/v1/admin/permissions` | `admin.role.view` |
+| GET | `/api/v1/admin/users` | `admin.user.view` |
+
+A caller holding no matching permission gets `403` with `ACCESS_DENIED`; a
+caller with no token at all gets `401` with `UNAUTHENTICATED`. The distinction
+is deliberate: the first has proved who they are and been refused, the second
+has not proved anything.
+
+Reads only. Creating users and re-permissioning roles arrive with the
+administration screens, together with the audit trail those changes require.
+
+### Authority in the token
+
+An access token carries `roles` and `perms` claims holding the codes its
+holder had at issue. `/api/v1/auth/me` returns the same two lists, so a client
+can hide a control it would only be refused for pressing. Both are advisory:
+the server refuses the call regardless of what the client chose to render.
+
+### Organization
+
+| Method | Path | Permission required |
+| ------ | ---- | ------------------- |
+| GET | `/api/v1/organization/unit-types` | `organization.view` |
+| GET | `/api/v1/organization/units` | `organization.view` |
+| GET | `/api/v1/organization/my-scope` | none beyond being signed in |
+
+The hierarchy is returned as a tree, with each unit carrying its children,
+because a caller who asks for an organisation almost always wants to draw one.
+
+`my-scope` returns the widest scope the caller's roles grant, the units they
+are posted to, and every unit those two facts together make visible. Both
+inputs are returned alongside the answer on purpose: "you can see three
+branches" is unactionable, while "your role is branch-scoped and you hold three
+postings" tells an administrator which of the two to change.
+
+Reads only. Building the hierarchy is an administration screen, and the audit
+trail that moving a branch between regions requires does not exist yet.
+
+### Customers
+
+| Method | Path | Permission required |
+| ------ | ---- | ------------------- |
+| GET | `/api/v1/customers` | `customer.view` |
+| GET | `/api/v1/customers/{customerId}` | `customer.view` |
+
+Two gates, not one. The permission decides whether a caller may read customers
+at all; their organisational scope decides which ones. Holding `customer.view`
+at a branch does not open the bank's whole book.
+
+A customer outside the caller's scope answers **404, not 403** - exactly as one
+that does not exist. A 403 would confirm the customer id is real and merely
+held elsewhere, which turns the endpoint into a way of locating people.
+
+The detail response carries personal data: parentage, date of birth, income and
+document numbers. Monetary fields are JSON strings, per section 3.
+
+Reads only. Creating and amending customers is the account-opening journey,
+which needs KYC verification to mean anything first.
+
+### Products
+
+| Method | Path | Permission required |
+| ------ | ---- | ------------------- |
+| GET | `/api/v1/products` | `product.view` |
+| GET | `/api/v1/products/{code}` | `product.view` |
+| POST | `/api/v1/products` | `product.configure` |
+| POST | `/api/v1/products/{code}/versions` | `product.configure` |
+| PUT | `/api/v1/products/{code}/versions/{versionNo}` | `product.configure` |
+| POST | `/api/v1/products/{code}/versions/{versionNo}/activate` | `product.configure` |
+| POST | `/api/v1/products/{code}/versions/{versionNo}/retire` | `product.configure` |
+
+The listing carries the version currently on sale, in full - terms, fees and
+per-grade ceilings - because a catalogue that shows a rate but not the processing
+fee shows a customer less than half of what a loan costs. Only the live version
+is loaded, never the history, so a product repriced fifty times costs the same
+two selects as one repriced once.
+
+There is no endpoint that edits a live version. Repricing drafts a copy, the copy
+is amended, and activating it retires the incumbent in the same transaction.
+Amending anything that is not a draft answers **409 CONFLICT** naming the status
+that refused it. So does starting a second draft while one is open.
+
+See [product configuration](../product/product-configuration.md).
+
+### Eligibility
+
+| Method | Path | Permission required |
+| ------ | ---- | ------------------- |
+| POST | `/api/v1/eligibility/check` | `eligibility.check` |
+
+```json
+{ "customerId": "CIF-000001", "productCode": "ELOAN" }
+```
+
+No amount, no rate, no tenure in the request: the endpoint answers what the
+customer qualifies for, not whether a figure somebody already chose is
+acceptable.
+
+Two gates again. The permission decides who may assess; the caller's
+organisational scope decides whose customers. A customer outside it answers
+**404**, exactly as on the customer endpoints and for the same reason.
+
+The response carries the decision, the amount, every criterion with its result,
+every limit that was considered - bound or not - and the id of the audit record
+the run was written to. A declined customer carries no amount: quoting a limit to
+somebody who has just been declined produces a figure that reads like an offer.
+
+See [eligibility and loan amount engines](../product/eligibility-engine.md).
+
+### Rules
+
+| Method | Path | Permission required |
+| ------ | ---- | ------------------- |
+| GET | `/api/v1/rules/groups` | `rules.view` |
+| GET | `/api/v1/rules/attributes` | `rules.view` |
+
+Read only until Milestone 21 brings maker and checker. Each rule is returned
+spelt out in the same words that appear in a decline, so a banker explaining one
+and the customer receiving it are looking at the same sentence.
+
+### Loan calculator
+
+| Method | Path | Permission required |
+| ------ | ---- | ------------------- |
+| POST | `/api/v1/loan-calculator` | `product.view` |
+
+```json
+{ "productCode": "ELOAN", "amount": "35000", "tenureMonths": 12 }
+```
+
+The rate is not in the request - it comes from the live product version. A client
+may show an indicative figure, but the authoritative answer is this one, and it
+could not be if the client chose the inputs to it.
+
+`rateOverride` additionally requires `product.price`. Supplying it without that
+permission is **refused**, not ignored: silently quoting a different rate from
+the one asked for is worse than saying no. A negotiated quote carries
+`rateNegotiated: true`.
+
+An amount or tenure the product does not offer answers **422** naming the bounds
+that were applied.
+
+See [pricing and the loan calculator](../product/pricing-and-calculator.md).
+
 ## 8. Rules for new endpoints
 
 Every endpoint must have: request validation, an authorisation rule, the standard

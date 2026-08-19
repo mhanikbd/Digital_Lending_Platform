@@ -104,7 +104,63 @@ a lock through a migration or a business day.
 
 ## 5. Current state
 
-After Milestone 1 the database contains the eighteen schemas, and
-`public.flyway_schema_history`. `DatabaseMigrationIT` asserts exactly that,
-including that no business tables exist yet, so a speculative table cannot be
-added without the test noticing.
+Migrations create tables only when the module that needs them arrives, so most
+of the eighteen schemas are still empty by design.
+
+`DatabaseMigrationIT` pins this: it asserts the exact set of tables each
+schema holds, and that every schema whose milestone has not arrived holds none.
+Adding a table means adding a line to that test deliberately, which is the
+moment to ask whether it is speculative.
+
+| Migration | Schema | Tables |
+| --------- | ------ | ------ |
+| V1 | all eighteen | none, deliberately |
+| V2 | `auth` | `t_user`, `t_user_credential`, `t_device`, `t_session`, `t_login_history` |
+| V3 | `auth` | `t_permission`, `t_role`, `t_role_permission`, `t_user_role` |
+| V4 | `organization` | `t_org_unit_type`, `t_org_unit`, `t_user_org_unit` |
+| V5 | `customer` | `t_customer`, `t_customer_address`, `t_customer_identification` |
+| V6 | `product` | `t_loan_product`, `t_loan_product_version`, `t_product_tenure`, `t_product_fee`, `t_product_risk_limit` |
+| V7 | `rules` | `t_rule_attribute`, `t_rule_group`, `t_rule`, `t_rule_evaluation`, `t_rule_evaluation_detail` |
+
+### Modelling decisions worth knowing
+
+**One organisation table, not nine.** The specification names bank, zone,
+region, branch, department, business unit, credit unit, personal processing
+centre and credit administration department. They are one self-referencing
+table with a type, because every one of them is a named node with a parent, and
+a bank opening a tenth kind should not need a migration.
+
+**Identification documents are rows, not columns.** A passport has an issue
+date, an expiry, a place of issue and a number; a driving licence has an expiry;
+a TIN has neither. Four of those flattened onto the customer row is a row that
+is mostly null and a form that has to know which columns belong together.
+
+**Descendants are queried, not stored.** `t_org_unit` keeps `parent_id` and
+nothing else about position. Subtrees come from a recursive query. A stored
+path column would have to be rewritten for an entire subtree whenever a unit
+moved, and a path that drifts out of step with `parent_id` misroutes approvals
+silently.
+
+**A product holds nothing that gets repriced.** The rate, the amount bounds, the
+tenures, the fees and the limit parameters are all on `t_loan_product_version`.
+There is no rate column on `t_loan_product` to edit by accident, and a partial
+unique index - `ON (product_id) WHERE status = 'ACTIVE'` - permits exactly one
+live version, so "which terms apply" cannot have two answers.
+
+**A rule's comparison value is text.** One column, parsed according to the
+attribute's declared type. Four typed columns would be three nulls per row; a
+JSON blob would be unqueryable. `IN` reads it as a comma separated list, and
+`BETWEEN` takes the upper bound from `comparison_value2` - which a check
+constraint requires for `BETWEEN` and forbids for everything else.
+
+**An evaluation's detail rows carry codes, not foreign keys.** A rule may be
+edited or deleted after a decision was made against it. A reason that changes
+when somebody retunes the criteria is not a reason, so the group code, attribute
+code, operator and expected value are copied into the record and the record stops
+depending on the configuration surviving.
+
+**Exposure ceilings are nullable and unset.** `max_total_exposure` caps what a
+borrower may owe in total. Left null for e-Loan on purpose: the product's own
+maximum is what *this* product lends, not what the borrower may owe altogether,
+and treating it as a total-debt ceiling would refuse a small personal loan to
+anybody holding a mortgage. Affordability is `max_dbr`'s job.

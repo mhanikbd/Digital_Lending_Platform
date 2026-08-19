@@ -4,11 +4,17 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -66,6 +72,19 @@ public class UserAccount {
 
     @Column(name = "must_change_secret", nullable = false)
     private boolean mustChangeSecret;
+
+    /**
+     * What this person may do, by way of the jobs they hold. Lazy because a
+     * sign-in reads the permission codes with one query rather than walking
+     * this graph; it exists so role assignment has somewhere to live.
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            schema = "auth",
+            name = "t_user_role",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id"))
+    private Set<Role> roles = new LinkedHashSet<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
@@ -209,6 +228,14 @@ public class UserAccount {
 
     public Instant getLastLoginAt() {
         return lastLoginAt;
+    }
+
+    public Set<Role> getRoles() {
+        return roles;
+    }
+
+    public void grant(Role role) {
+        roles.add(role);
     }
 
     public boolean isMustChangeSecret() {

@@ -3,12 +3,45 @@ import Link from "next/link";
 /**
  * Landing page for the back-office portal.
  *
- * The sections listed here are the Milestone 35 to 38 deliverables. They are
- * shown as a roadmap rather than as dead links so that the foundation is
- * honest about what does and does not exist yet.
+ * <p>Two lists, and the split is the point. What is live is what a banker can
+ * actually do today; what is planned is shown as text rather than as a dead
+ * link, so the portal never implies a screen that does not exist.
  */
+const LIVE_SECTIONS = [
+  {
+    name: "Customers",
+    href: "/customers",
+    detail: "The customer master, narrowed to your organisational scope",
+  },
+  {
+    name: "Products",
+    href: "/products",
+    detail: "The catalogue and the terms each product is currently sold on",
+  },
+  {
+    name: "Eligibility",
+    href: "/eligibility",
+    detail: "Whether a customer qualifies, for how much, and why",
+  },
+  {
+    name: "Loan calculator",
+    href: "/calculator",
+    detail: "Instalment, interest, fees, VAT and the full repayment schedule",
+  },
+  {
+    name: "Organization",
+    href: "/organization",
+    detail: "The bank's own hierarchy and the scope rules that follow from it",
+  },
+  {
+    name: "System health",
+    href: "/system/health",
+    detail: "Whether the database, cache and object storage are reachable",
+  },
+];
+
 const PLANNED_SECTIONS = [
-  { name: "Administration", detail: "Users, roles, branches, products, rules, workflow, approval matrix" },
+  { name: "Administration", detail: "Users, roles, branches, workflow, approval matrix" },
   { name: "Loan processing", detail: "Application queue, returned, pending, approved, rejected, disbursed" },
   { name: "Credit", detail: "Credit queue, analysis workspace, CIB, screening, queries" },
   { name: "Approval", detail: "Approval queue, conditional approval, escalation, group approval" },
@@ -22,20 +55,33 @@ export default function OverviewPage() {
       <section>
         <h1 className="text-2xl font-semibold tracking-tight">Bank back office</h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
-          The platform foundation is in place: infrastructure, the Spring Boot
-          API, database migrations and this portal. Lending functionality is
-          delivered milestone by milestone from here.
+          The foundation, access control and the customer master are in place,
+          and so is the decisioning half of the platform: the product catalogue
+          and its versioning, the rule engine, the eligibility and amount
+          engines, and the pricing calculator. Loan applications and the workflow
+          that moves them are delivered from here.
         </p>
-        <Link
-          href="/system/health"
-          className="mt-5 inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
-        >
-          View system health
-        </Link>
       </section>
 
       <section>
-        <h2 className="text-base font-semibold">Planned sections</h2>
+        <h2 className="text-base font-semibold">Available now</h2>
+        <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+          {LIVE_SECTIONS.map((section) => (
+            <li key={section.href}>
+              <Link
+                href={section.href}
+                className="block rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:border-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-600"
+              >
+                <p className="text-sm font-medium">{section.name}</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{section.detail}</p>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section>
+        <h2 className="text-base font-semibold">Still to come</h2>
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">
           {PLANNED_SECTIONS.map((section) => (
             <li

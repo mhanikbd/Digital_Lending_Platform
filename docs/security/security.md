@@ -144,7 +144,90 @@ counter; roles, permissions and scope claims, which are Milestone 6; and the
 SMS gateway, so OTP delivery is unwired and a development flag returns the code
 in the response. That flag must never be set anywhere a customer can reach.
 
-## 9. Known gaps
+## 9. Authorisation (Milestone 6)
+
+Authentication answers who a caller is. This answers what they may do, and it
+answers it from the database.
+
+**A permission is a row.** `auth.t_permission` holds the catalogue,
+`auth.t_role` the fourteen roles the specification names, and
+`auth.t_role_permission` the grant between them. Changing what a Branch Manager
+may do is an insert or a delete, never a deployment.
+
+**Guards name permissions, not roles.** Every protected endpoint carries
+`@PreAuthorize("hasAuthority('admin.role.view')")` or similar. Role codes are
+also exposed as `ROLE_` authorities so `hasRole` works, but nothing in this
+platform should use them: branching on a role name is exactly the hard-coding
+the specification forbids, and it puts a bank policy decision back into the
+source.
+
+**Authority travels in the token.** An access token carries the permission codes
+its holder had when it was issued, so an authorisation decision costs no
+database read. The price is that a permission taken away is still honoured until
+that token expires. Fifteen minutes is the ceiling on that window, and it is one
+of the reasons the lifetime is short. A grant that must stop mattering
+immediately is enforced by revoking the session, which the refresh token makes
+possible; the next refresh resolves permissions afresh.
+
+**Nothing is open by default.** The API chain still ends in
+`anyRequest().authenticated()`, and the portal is closed at its route group, so
+a new back-office page is protected by existing rather than by its author
+remembering to guard it.
+
+**Scope is organisational as well as functional.** A permission says what a
+person may do; their role's `scope_level` and their postings say where. A
+branch-scoped role reaches only the units it is posted to, a region-scoped role
+reaches everything beneath them, and a head-office role reaches the bank.
+Holding several roles grants the widest of them, because adding a role must
+never take access away.
+
+Two failure modes are guarded deliberately. An account posted nowhere resolves
+to an empty set rather than to no filter, so it sees nothing instead of
+everything. And descendants are resolved by a recursive query rather than a
+stored path, because a path that drifts out of step with `parent_id` sends an
+approval to the wrong region and nobody notices until it has.
+Role and user administration screens are Milestone 35; the endpoints here are
+reads only, because the audit trail that a permission change requires does not
+exist yet.
+
+### The permission catalogue as it stands
+
+| Permission | Granted to | Guards |
+| ---------- | ---------- | ------ |
+| `system.health.view` | every staff role | The platform health endpoint |
+| `admin.role.view` | ADMIN | Roles and permissions |
+| `admin.user.view` | ADMIN | Bank users and their roles |
+| `organization.view` | every staff role | The unit tree and the caller's own scope |
+| `customer.view` | every staff role | The customer master |
+| `product.view` | every staff role | The catalogue and the loan calculator |
+| `eligibility.check` | every staff role | Running an eligibility assessment |
+| `product.configure` | ADMIN | Drafting, amending, activating and retiring versions |
+| `product.price` | ADMIN, HOCRM, CEO, MD | Quoting a rate other than the published one |
+| `rules.view` | ADMIN, CA, HOCRM, CEO, MD, PPC | Reading the eligibility criteria |
+| `rules.configure` | ADMIN | Reserved; no write endpoint exists yet |
+
+Three of those are narrower than the rest, and deliberately.
+
+**`product.configure`** decides what every subsequent application is judged by.
+It sits with administration alone until the maker and checker of Milestone 21
+exist to divide it, because one click is not the right amount of ceremony for
+repricing a product.
+
+**`product.price`** is a concession, and a concession is a credit decision, so it
+goes to the roles that already carry delegated approval authority. It is checked
+on one field of the request rather than on the endpoint - the calculator is open
+to everyone who may see a product - and supplying a rate override without it is
+refused rather than ignored. Quoting a customer a different rate from the one
+asked for, silently, would be the worse failure.
+
+**`rules.view`** goes to credit as well as to administration: anybody who has to
+explain a decline needs to be able to read the rule that produced it.
+
+`rules.configure` is granted but guards nothing yet. That is intentional and
+visible rather than a permission invented later under time pressure; the write
+endpoints arrive with maker-checker.
+
+## 10. Known gaps
 
 These are tracked, not overlooked:
 

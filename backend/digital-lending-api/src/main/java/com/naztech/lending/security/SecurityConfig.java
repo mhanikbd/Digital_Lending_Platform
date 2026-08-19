@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -62,6 +63,7 @@ public class SecurityConfig {
     @Order(2)
     SecurityFilterChain apiSecurityFilterChain(HttpSecurity http,
                                                CorsConfigurationSource corsConfigurationSource,
+                                               JwtAuthenticationConverter jwtAuthenticationConverter,
                                                RestAuthenticationEntryPoint authenticationEntryPoint,
                                                RestAccessDeniedHandler accessDeniedHandler) throws Exception {
         return http
@@ -86,7 +88,7 @@ public class SecurityConfig {
                         // authorisation rule is added deliberately.
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(Customizer.withDefaults())
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
                 .exceptionHandling(handling -> handling

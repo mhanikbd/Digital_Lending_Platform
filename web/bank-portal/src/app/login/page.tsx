@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { BankLogo } from "@/components/bank-logo";
 import { BrandLockup } from "@/components/brand-mark";
@@ -9,6 +8,7 @@ import { LoginForm } from "@/components/login-form";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { fetchFromBackend } from "@/lib/api/backend";
 import { platformHealthSchema, platformInfoSchema } from "@/lib/api/contracts";
+import { publicEnv } from "@/lib/env";
 import { cn } from "@/lib/cn";
 
 export const metadata: Metadata = {
@@ -51,7 +51,7 @@ export default async function LoginPage() {
           <LifecycleRing className="min-h-0 flex-1" />
 
           <p className="font-mono text-xs tracking-[0.2em] text-hero-faint uppercase short:hidden">
-            Milestone 1 &middot; Platform foundation
+            Milestone 17 &middot; Product &amp; decisioning
           </p>
         </div>
       </aside>
@@ -79,21 +79,21 @@ export default async function LoginPage() {
 
             <LoginForm />
 
-            <div className="mt-[var(--gap-stack)] rounded-lg border border-line bg-panel px-4 py-3">
-              <p className="font-mono text-[11px] tracking-wider text-ink-subtle uppercase">
-                Accounts not issued yet
-              </p>
-              <p className="mt-1.5 text-xs leading-relaxed text-ink-muted tiny:hidden">
-                Bank-user sign-in — employee ID, password, MFA and database-driven
-                roles for FO, SO, BM, CA, RM, HOCRM and CAD — is Milestone 5.
-              </p>
-              <Link
-                href="/system/health"
-                className="mt-2 inline-block text-xs font-medium text-brand hover:underline theme-green:text-brand-strong"
-              >
-                View system health &rarr;
-              </Link>
-            </div>
+            {publicEnv.appEnv === "local" && (
+              <div className="mt-[var(--gap-stack)] rounded-lg border border-line bg-panel px-4 py-3">
+                <p className="font-mono text-[11px] tracking-wider text-ink-subtle uppercase">
+                  Local environment
+                </p>
+                {/* The seeded employee id, so a developer does not have to read
+                    the source to find it. Never the password: that is in
+                    application-local.yml, and printing it on a sign-in page is a
+                    habit that outlives the environment it was safe in. */}
+                <p className="mt-1.5 text-xs leading-relaxed text-ink-muted tiny:hidden">
+                  Seeded administrator <span className="font-mono text-ink">EMP-10001</span>.
+                  Its password is set by <span className="font-mono">dlp.auth.bootstrap.password</span>.
+                </p>
+              </div>
+            )}
 
             <div className="mt-[var(--gap-stack)] flex flex-col items-center gap-[var(--gap-tight)]">
               <ThemeSwitcher />

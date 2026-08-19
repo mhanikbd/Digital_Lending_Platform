@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { z } from "zod";
 
@@ -7,22 +8,26 @@ import { ArrowRightIcon, EyeIcon, EyeOffIcon, LockIcon, UserIcon } from "@/compo
 import { cn } from "@/lib/cn";
 
 /**
- * Bank-user sign-in form.
+ * Bank-user sign-in.
  *
- * Shape only, deliberately. Authentication is Milestone 5, so there is no
- * endpoint to post to: the form validates locally and says so rather than
- * pretending to sign anyone in. The credential never leaves the browser, and
- * is never written to the console or to any log.
+ * <p>The credential is posted to this application's own route handler, never to
+ * the API directly, and what comes back carries no token: the session is set as
+ * httpOnly cookies by the server. Nothing on this page can read it, which is
+ * the point.
  *
- * When Milestone 5 lands, `onSubmit` posts to a portal route handler that
- * proxies the API, and the notice below is replaced by the server's error.
+ * <p>Two steps, because the API may answer a correct password with a challenge
+ * rather than a session. Which step is on screen is driven by that answer, not
+ * by anything this component decides.
  */
 const credentialsSchema = z.object({
   username: z.string().trim().min(1, "Enter your employee ID or username."),
   password: z.string().min(1, "Enter your password."),
 });
 
-type Field = "username" | "password";
+const codeSchema = z.string().regex(/^[0-9]{6}$/, "Enter the 6 digit code.");
+
+type Field = "username" | "password" | "code";
+type Step = "credentials" | "mfa";
 
 const FIELD_STYLES =
   "w-full rounded-lg border bg-field py-[var(--pad-field)] pl-10 text-sm text-ink shadow-xs outline-none transition " +
@@ -31,22 +36,36 @@ const FIELD_STYLES =
 const ERROR_TEXT = "mt-1.5 text-xs text-red-600 theme-dark:text-red-400";
 
 export function LoginForm() {
+  const router = useRouter();
   const usernameId = useId();
   const passwordId = useId();
+  const codeId = useId();
 
+  const [step, setStep] = useState<Step>("credentials");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [challengeId, setChallengeId] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
+  const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [notice, setNotice] = useState<string | null>(null);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const result = credentialsSchema.safeParse({ username, password });
+  /** Sends the signed-in operator on, and drops the credential from memory. */
+  function onAuthenticated() {
+    setPassword("");
+    setCode("");
+    // refresh() so the server components re-render knowing there is a session.
+    router.replace("/");
+    router.refresh();
+  }
 
-    if (!result.success) {
+  async function submitCredentials(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const parsed = credentialsSchema.safeParse({ username, password });
+    if (!parsed.success) {
       const next: Partial<Record<Field, string>> = {};
-      for (const issue of result.error.issues) {
+      for (const issue of parsed.error.issues) {
         const field = issue.path[0];
         if ((field === "username" || field === "password") && !next[field]) {
           next[field] = issue.message;
@@ -58,13 +77,123 @@ export function LoginForm() {
     }
 
     setErrors({});
-    setNotice(
-      "Bank-user authentication arrives in Milestone 5. Your credentials were checked for completeness in this browser only — nothing was sent and no session was created.",
+    setNotice(null);
+    setPending(true);
+    try {
+      const response = await fetch("/bff/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed.data),
+      });
+      const body = (await response.json()) as {
+        ok: boolean;
+        status?: string;
+        reason?: string;
+        mfaChallengeId?: string;
+      };
+
+      if (!body.ok) {
+        setNotice(body.reason ?? "Sign-in was refused.");
+        return;
+      }
+      if (body.status === "MFA_REQUIRED" && body.mfaChallengeId) {
+        setChallengeId(body.mfaChallengeId);
+        setStep("mfa");
+        return;
+      }
+      onAuthenticated();
+    } catch {
+      setNotice("The portal could not reach the sign-in service.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function submitCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const parsed = codeSchema.safeParse(code);
+    if (!parsed.success) {
+      setErrors({ code: parsed.error.issues[0]?.message });
+      return;
+    }
+
+    setErrors({});
+    setNotice(null);
+    setPending(true);
+    try {
+      const response = await fetch("/bff/auth/mfa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challengeId, code: parsed.data }),
+      });
+      const body = (await response.json()) as { ok: boolean; reason?: string };
+
+      if (!body.ok) {
+        setNotice(body.reason ?? "That code was not accepted.");
+        return;
+      }
+      onAuthenticated();
+    } catch {
+      setNotice("The portal could not reach the sign-in service.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (step === "mfa") {
+    return (
+      <form onSubmit={submitCode} noValidate className="mt-[var(--gap-stack)] space-y-4">
+        <div>
+          <label htmlFor={codeId} className="block text-sm font-medium text-ink">
+            Verification code
+          </label>
+          <p className="mt-1 text-xs text-ink-muted">
+            Enter the 6 digit code sent to you to finish signing in.
+          </p>
+          <input
+            id={codeId}
+            name="code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            autoFocus
+            placeholder="000000"
+            value={code}
+            onChange={(event) => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+            aria-invalid={errors.code ? true : undefined}
+            className={cn(
+              "mt-2 w-full rounded-lg border bg-field py-[var(--pad-field)] text-center font-mono text-lg",
+              "tracking-[0.4em] text-ink outline-none focus:ring-2 focus:ring-brand/35",
+              errors.code ? "border-red-500" : "border-line focus:border-brand",
+            )}
+          />
+          {errors.code && <p className={ERROR_TEXT}>{errors.code}</p>}
+        </div>
+
+        <button type="submit" disabled={pending} className={primaryButton}>
+          {pending ? "Verifying…" : "Verify and sign in"}
+          {!pending && <ArrowRightIcon className="size-4" />}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setStep("credentials");
+            setChallengeId(null);
+            setCode("");
+            setNotice(null);
+          }}
+          className="w-full text-center text-xs font-medium text-ink-muted hover:text-ink"
+        >
+          Use a different account
+        </button>
+
+        {notice && <Notice>{notice}</Notice>}
+      </form>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="mt-[var(--gap-stack)] space-y-[clamp(0.6rem,1.9vh,1.6rem)]">
+    <form onSubmit={submitCredentials} noValidate className="mt-[var(--gap-stack)] space-y-[clamp(0.6rem,1.9vh,1.6rem)]">
       <div>
         <label htmlFor={usernameId} className="block text-sm font-medium text-ink">
           Employee ID
@@ -148,22 +277,33 @@ export function LoginForm() {
         <span className="text-sm text-ink-subtle">Forgot password?</span>
       </div>
 
-      <button
-        type="submit"
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-linear-to-r from-brand to-brand-strong px-4 py-[var(--pad-field)] text-sm font-semibold text-brand-ink shadow-sm transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas focus-visible:outline-none"
-      >
-        Sign in
-        <ArrowRightIcon className="size-4" />
+      <button type="submit" disabled={pending} className={primaryButton}>
+        {pending ? "Signing in…" : "Sign in"}
+        {!pending && <ArrowRightIcon className="size-4" />}
       </button>
 
-      {notice && (
-        <p
-          role="status"
-          className="rounded-lg border border-amber-400/60 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-900 theme-dark:bg-amber-950/40 theme-dark:text-amber-200"
-        >
-          {notice}
-        </p>
-      )}
+      {notice && <Notice>{notice}</Notice>}
     </form>
+  );
+}
+
+const primaryButton =
+  "flex w-full items-center justify-center gap-2 rounded-lg bg-linear-to-r from-brand to-brand-strong " +
+  "px-4 py-[var(--pad-field)] text-sm font-semibold text-brand-ink shadow-sm transition hover:brightness-110 " +
+  "disabled:cursor-not-allowed disabled:opacity-70 focus-visible:ring-2 focus-visible:ring-brand/50 " +
+  "focus-visible:ring-offset-2 focus-visible:ring-offset-canvas focus-visible:outline-none";
+
+/**
+ * Whatever the API said, verbatim. It answers every rejection with the same
+ * sentence on purpose, so there is nothing here to soften or embellish.
+ */
+function Notice({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      role="status"
+      className="rounded-lg border border-red-400/60 bg-red-50 px-4 py-3 text-xs leading-relaxed text-red-800 theme-dark:bg-red-950/40 theme-dark:text-red-200"
+    >
+      {children}
+    </p>
   );
 }

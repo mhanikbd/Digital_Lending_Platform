@@ -22,6 +22,7 @@ import com.naztech.lending.auth.repository.UserSessionRepository;
 import com.naztech.lending.common.exception.BusinessException;
 import com.naztech.lending.common.exception.ErrorCode;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -223,7 +224,9 @@ public class AuthenticationService {
 
         session.markUsed(now);
         session.revoke("ROTATED", now);
-        return issueTokens(user, session.getDevice(), caller, now);
+        // Resolved afresh on every refresh, so a role taken away takes effect at
+        // the next refresh rather than only when the session finally expires.
+        return issueTokens(user, session.getDevice(), caller, now, authoritiesOf(user));
     }
 
     /** Ends one session. Idempotent: an unknown token is simply already ended. */
@@ -235,9 +238,9 @@ public class AuthenticationService {
 
     @Transactional(readOnly = true)
     public AuthenticatedUserResponse describe(UUID userId) {
-        return users.findById(userId)
-                .map(AuthenticatedUserResponse::from)
-                .orElseThrow(AuthenticationService::rejected);
+        UserAccount user = users.findById(userId).orElseThrow(AuthenticationService::rejected);
+        Authorities granted = authoritiesOf(user);
+        return AuthenticatedUserResponse.from(user, granted.roles(), granted.permissions());
     }
 
     // ------------------------------------------------------------------
@@ -287,17 +290,30 @@ public class AuthenticationService {
         return user;
     }
 
+    /** What a person may do, resolved once per sign-in or refresh. */
+    private record Authorities(List<String> roles, List<String> permissions) {
+    }
+
+    private Authorities authoritiesOf(UserAccount user) {
+        return new Authorities(
+                users.findRoleCodes(user.getId()),
+                users.findPermissionCodes(user.getId()));
+    }
+
     private LoginResponse completeLogin(UserAccount user, UserDevice device, Caller caller,
                                         String usernameAttempted, Instant now) {
         user.registerSuccessfulLogin(now);
         users.save(user);
-        TokenPair tokens = issueTokens(user, device, caller, now);
+        Authorities granted = authoritiesOf(user);
+        TokenPair tokens = issueTokens(user, device, caller, now, granted);
         recorder.record(user.getId(), usernameAttempted, user.getUserType(),
                 LoginOutcome.SUCCESS, null, caller);
-        return LoginResponse.authenticated(tokens, AuthenticatedUserResponse.from(user));
+        return LoginResponse.authenticated(tokens,
+                AuthenticatedUserResponse.from(user, granted.roles(), granted.permissions()));
     }
 
-    private TokenPair issueTokens(UserAccount user, UserDevice device, Caller caller, Instant now) {
+    private TokenPair issueTokens(UserAccount user, UserDevice device, Caller caller,
+                                  Instant now, Authorities granted) {
         String refreshToken = tokenService.generateRefreshToken();
         UserSession session = new UserSession(
                 user, device, tokenService.hash(refreshToken),
@@ -306,7 +322,7 @@ public class AuthenticationService {
         sessions.save(session);
 
         return new TokenPair(
-                tokenService.issueAccessToken(user, now),
+                tokenService.issueAccessToken(user, granted.roles(), granted.permissions(), now),
                 tokenService.accessTtlSeconds(),
                 refreshToken,
                 tokenService.refreshTtlSeconds());

@@ -97,7 +97,8 @@ Packages under `com.naztech.lending`:
 | `account` | Account products and account opening | 11-12 |
 | `product` | Loan products and product versions | 13-14 |
 | `rules` | Generic rule engine | 15 |
-| `eligibility` | Eligibility and loan amount engines | 16 |
+| `eligibility` | Eligibility and loan amount engines | 16-17 |
+| `pricing` | Interest, fees, EMI and the loan calculator | 16-17 |
 | `application` | Loan applications and their lifecycle | 18 |
 | `workflow` | States, transitions, role-state permissions | 19 |
 | `credit` | Credit analysis and scorecards | 20 |
@@ -124,6 +125,17 @@ A module owns exactly one PostgreSQL schema. Reaching into the tables of another
 module from a repository is not allowed; go through that service instead. The
 boundary is enforced by convention and code review today, and it is what makes a
 later service extraction feasible.
+
+Two modules own no schema, which is not an exception to that rule but a
+consequence of it: `pricing` computes and stores nothing, and `eligibility`
+orchestrates two engines that each keep their own records elsewhere. A module
+gets a schema when it has state, not because it exists.
+
+`eligibility` is also where the customer and rules modules meet. The rules module
+must not import the customer module - it would then be a rules-about-customers
+module, and the next subject type would need a second copy of it - and the
+customer module has no business knowing rules exist. So the bridge lives in the
+one place that actually wants both.
 
 ## 5. Request flow
 
@@ -177,8 +189,23 @@ justifies a broker.
 - Next.js portal with a system health page that exercises the whole vertical
 - 33 unit tests and 14 Testcontainers integration tests
 
-## 9. What is deliberately absent
+## 9. What Milestones 5 to 17 added
 
-Loan business logic, authentication, RBAC, and the Flutter applications. Each
-arrives in its own milestone. No speculative tables, no speculative abstractions
-and no dependencies without a current use.
+- **5-6** Authentication and authorisation: sign-in, MFA, session rotation, the
+  login audit trail, fourteen roles and a permission catalogue
+- **7** The bank's own hierarchy, as one configurable tree, and the scope rules
+  that follow from it
+- **8** The customer master, read through those scopes
+- **13-14** The product catalogue and its versioning: terms live on a version,
+  a live version is never edited, and repricing means issuing a new one
+- **15** A generic rule engine - attribute, operator, value - with every
+  evaluation recorded against the product version it was decided under
+- **16-17** The eligibility engine, the loan amount engine that reports which of
+  seven caps bound the result, and the pricing calculator behind both
+
+## 10. What is deliberately absent
+
+Loan applications, workflow, credit analysis, approval, disbursement, repayment,
+collections and the Flutter applications. Each arrives in its own milestone. No
+speculative tables, no speculative abstractions and no dependencies without a
+current use.

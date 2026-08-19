@@ -10,6 +10,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -46,10 +47,15 @@ public class TokenService {
     /**
      * Mints an access token for an identity.
      *
-     * <p>Claims are deliberately thin: subject, who they are, and nothing a
-     * client could mistake for authority. Scopes arrive with Milestone 6.
+     * <p>The token carries the permission codes the holder had at the moment it
+     * was issued, so an authorisation decision costs no database read. The price
+     * is that a permission taken away is still honoured until the token expires,
+     * which is one of the reasons the lifetime is measured in minutes rather
+     * than hours. A revocation that must bite immediately revokes the session,
+     * not the grant.
      */
-    public String issueAccessToken(UserAccount user, Instant now) {
+    public String issueAccessToken(UserAccount user, List<String> roles,
+                                   List<String> permissions, Instant now) {
         Instant expiresAt = now.plus(properties.jwt().accessTtl());
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(properties.jwt().issuer())
@@ -59,6 +65,8 @@ public class TokenService {
                 .claim("username", user.getUsername())
                 .claim("userType", user.getUserType().name())
                 .claim("displayName", user.getDisplayName())
+                .claim("roles", roles)
+                .claim("perms", permissions)
                 .build();
         JwsHeader header = JwsHeader.with(org.springframework.security.oauth2.jose.jws.MacAlgorithm.HS256).build();
         return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
