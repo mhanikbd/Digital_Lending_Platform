@@ -1,6 +1,6 @@
 # Milestone progress status
 
-**As at 19 August 2026** · Digital Lending Platform for NRBC Bank · built by naztech
+**As at 20 August 2026** · Digital Lending Platform for NRBC Bank · built by naztech
 
 Updated on every commit. The specification lists 44 milestones across ten phases;
 this records exactly where each one stands and, where something is deliberately
@@ -114,9 +114,10 @@ token stays in an httpOnly cookie the page cannot read.
 
 ### Demonstration sign-in
 
-The sign-in page now offers the six seeded staff accounts as cards; clicking one
-fills the form. The roster is chosen to make the platform's own rules visible
-rather than to cover all fourteen roles:
+The sign-in page offers the six seeded staff accounts as a row of role pills;
+clicking one fills the form and you press Sign in yourself. The roster is chosen
+to make the platform's own rules visible rather than to cover all fourteen
+roles:
 
 | Employee id | Role | Posted to | Sees |
 | ----------- | ---- | --------- | ---- |
@@ -134,6 +135,13 @@ Local profile only, and three guards hold it there — the accounts are seeded b
 profile-guarded runner rather than a migration, the endpoint that publishes the
 passwords is registered only under that profile, and the runner refuses to seed
 if the database already holds staff who are not on the roster.
+`LocalDemoAccountsTest` pins the first two by asserting the annotation on every
+class that knows a password.
+
+The sign-in column was rebalanced around it: the theme switcher sits top right,
+the form takes the height that is left, and the status line rests on the floor.
+Verified at 1600×1000 and 1366×768 in all three themes — nothing scrolls at
+either size.
 
 ### Tests
 
