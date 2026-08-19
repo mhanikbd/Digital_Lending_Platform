@@ -337,6 +337,48 @@ that were applied.
 
 See [pricing and the loan calculator](../product/pricing-and-calculator.md).
 
+### Loan applications
+
+| Method | Path | Permission |
+| ------ | ---- | ---------- |
+| GET | `/api/v1/loan-applications` | `application.view` |
+| GET | `/api/v1/loan-applications?state=CA_RECEIVED` | `application.view` |
+| GET | `/api/v1/loan-applications/purposes` | `application.view` |
+| GET | `/api/v1/loan-applications/{applicationNo}` | `application.view` |
+| GET | `/api/v1/loan-applications/{applicationNo}/available-actions` | `application.view` |
+| POST | `/api/v1/loan-applications` | `application.create` |
+| POST | `/api/v1/loan-applications/{applicationNo}/actions` | `application.act` |
+| POST | `/api/v1/loan-applications/{applicationNo}/comments` | `application.act` |
+
+Three gates rather than two. The permission decides whether a caller may touch
+applications at all; their organisational scope decides which; and the role/state
+map decides what they may do to the one in front of them.
+
+Creating is narrower than viewing. A credit analyst who could raise the file they
+are about to assess is a control failure, so `application.create` goes to the
+roles that source business and not to the ones that judge it.
+
+The quotation is the backend's. A request carries an amount and a tenure, never a
+rate - a client that could supply one could raise a file at a rate the bank never
+offered.
+
+Refusals are distinguishable: `403` when the role is wrong, `409` when the move
+is not one the state can make, `400` when a required reason is missing.
+
+See [workflow](../workflows/workflow.md).
+
+### Workflow configuration
+
+| Method | Path | Permission |
+| ------ | ---- | ---------- |
+| GET | `/api/v1/workflow/states` | `workflow.view` |
+| GET | `/api/v1/workflow/transitions` | `workflow.view` |
+| GET | `/api/v1/workflow/permissions` | `workflow.view` |
+
+Read only until maker-checker arrives. Reading is open to every staff role,
+because the honest answer to "why can I not recommend this" is the configuration
+itself.
+
 ## 8. Rules for new endpoints
 
 Every endpoint must have: request validation, an authorisation rule, the standard

@@ -45,7 +45,14 @@ class DatabaseMigrationIT extends IntegrationTestBase {
                     "t_product_fee", "t_product_risk_limit"),
             "rules", Set.of(
                     "t_rule_attribute", "t_rule_group", "t_rule",
-                    "t_rule_evaluation", "t_rule_evaluation_detail"));
+                    "t_rule_evaluation", "t_rule_evaluation_detail"),
+            "workflow", Set.of(
+                    "t_workflow_state", "t_role_state_map", "t_state_transition"),
+            "application", Set.of(
+                    "t_loan_purpose", "t_loan_application", "t_loan_application_applicant",
+                    "t_loan_application_financial", "t_loan_application_document",
+                    "t_loan_application_status_history", "t_loan_application_comment",
+                    "t_loan_application_query", "t_loan_application_query_response"));
 
     @Autowired
     private JdbcTemplate jdbcTemplate;

@@ -53,7 +53,7 @@ subclass really does resolve it.
 
 ## 4. Coverage today
 
-**Unit — 162 tests**
+**Unit — 187 tests**
 
 | Class | Covers |
 | ----- | ------ |
@@ -74,6 +74,8 @@ subclass really does resolve it.
 | `RuleEngineTest` | AND against OR, which reasons a customer is given, an empty group, a deactivated rule, and that a run is recorded whether it passed or failed |
 | `LoanAmountEngineTest` | The specification's worked example figure for figure, which cap bound, unconfigured caps constraining nothing, the debt burden converted into an amount, and rounding that never exceeds a ceiling |
 | `CustomerRuleContextTest` | That every seeded attribute is supplied, and that a missing district, a missing address and a missing date of birth are reported rather than thrown |
+| `WorkflowServiceTest` | Both gates of the workflow engine, grants adding up across roles, role-specific transitions, and that an ambiguous move is refused rather than guessed |
+| `LocalDemoAccountsTest` | The local-profile guard on every class that knows a demo password, and that the roster covers every workflow step |
 
 **Integration — 14 tests**
 
@@ -93,8 +95,9 @@ these are not optional:
 - ~~**Loan amount** — minimum, maximum, and which constraint bound the result~~ *(done: `LoanAmountEngineTest`)*
 - ~~**Calculator** — EMI and interest for flat, reducing balance and effective
   rate, plus rounding at each boundary~~ *(done: `LoanCalculatorTest`)*
-- **Workflow** — forward transitions, returns, and that an unauthorised
-  role-state transition is refused
+- ~~**Workflow** — forward transitions, returns, and that an unauthorised
+  role-state transition is refused~~ *(done: `WorkflowServiceTest`, plus a
+  full six-step walk verified end to end against a running stack)*
 - **Branch approval** — BM, BOM and PPC recommendation paths
 - **Credit analysis** — query raised, query answered, return
 - **Approval** — each tier, escalation, conditional approval, group approval

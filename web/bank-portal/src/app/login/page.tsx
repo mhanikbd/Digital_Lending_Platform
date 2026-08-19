@@ -59,7 +59,7 @@ export default async function LoginPage() {
           <LifecycleRing className="min-h-0 flex-1" />
 
           <p className="font-mono text-xs tracking-[0.2em] text-hero-faint uppercase short:hidden">
-            Milestone 17 &middot; Product &amp; decisioning
+            Milestone 19 &middot; Application &amp; workflow
           </p>
         </div>
       </aside>

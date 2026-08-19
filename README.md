@@ -8,23 +8,25 @@ further products (Quick, Instant, Personal, Car, Student, Home, SME/CMSME,
 Credit Card) are introduced through configuration and product versioning rather
 than new codebases.
 
-> ### Current state: Milestones 1–8 and 13–17 complete
+> ### Current state: Milestones 1–8 and 13–19 complete
 >
-> The platform can now answer the two questions that come before a loan
-> application: **may this customer borrow**, and **on what terms**.
+> The platform takes a loan application and walks it through the full six-step
+> workflow, from origination to a closed disbursement.
 >
 > In place: infrastructure and migrations; authentication with sign-in, MFA,
 > session rotation and a login audit trail; role-based access control; the
 > bank's organisational hierarchy and the scope rules that follow from it; the
 > customer master; the **product catalogue and its versioning**; a generic
-> **rule engine**; the **eligibility** and **loan amount** engines; and the
-> **pricing calculator**.
+> **rule engine**; the **eligibility** and **loan amount** engines; the
+> **pricing calculator**; the **loan application**; and the **workflow engine**
+> whose states, transitions and role permissions are three database tables
+> rather than any Java.
 >
-> Not yet built: loan applications, workflow, credit analysis, approval,
-> disbursement, repayment and collections. Onboarding (Milestones 9–12) is
-> deferred by instruction.
+> Not yet built: credit analysis proper, CIB, screening, the sanctioning-limit
+> matrix, core banking, repayment and collections. Onboarding (Milestones 9–12)
+> is deferred by instruction.
 >
-> **173 unit tests, all passing.** Full detail in
+> **187 unit tests, all passing.** Full detail in
 > [milestone status](docs/milestone-status.md).
 
 ## What works today
@@ -38,6 +40,9 @@ than new codebases.
 | Eligibility and loan sizing | `/api/v1/eligibility/check` | `/eligibility` |
 | EMI, interest, fees, VAT, schedule | `/api/v1/loan-calculator` | `/calculator` |
 | Configured eligibility criteria | `/api/v1/rules/*` | — |
+| The loan queue and one file in full | `/api/v1/loan-applications` | `/applications` |
+| What you may do to a file, and doing it | `/api/v1/loan-applications/{no}/actions` | `/applications/{no}` |
+| The configured workflow | `/api/v1/workflow/*` | — |
 
 A worked example — 35,000 over 12 months on e-Loan v1, computed entirely by the
 backend:
@@ -49,6 +54,27 @@ backend:
 | Fees + VAT | 525.00 + 52.50 |
 | Total payable | 37,307.12 |
 | Reaches the account | 34,422.50 |
+
+### The six-step workflow
+
+An application walks from origination to disbursement through states, transitions
+and role permissions that live in three database tables — not in code. Searching
+`WorkflowService` for `"BM"` finds nothing, which is the test the specification
+sets. One file, verified end to end across ten roles:
+
+```
+SO     RECOMMEND -> SO_RECOMMENDED    BM   RECOMMEND -> BM_RECOMMENDED
+MIS    ALLOCATE  -> MIS_ALLOCATED     CA   QUERY     -> CA_SEND_QUERY
+SO     SUBMIT    -> CA_CONDITION_FULFILLED              (query answered, both kept)
+CA     RECOMMEND -> CA_RECOMMENDED    RM   ESCALATE  -> UH_REVIEW
+UH     ESCALATE  -> HOCRM_REVIEW      HOCRM APPROVE  -> APPROVED  (cut to 30,000)
+CAD    DISBURSE  -> SEND_TO_CBS       CAD  SUBMIT    -> CLOSED
+```
+
+The portal asks the backend what the signed-in person may do
+(`available-actions`) and draws that. A screen deciding for itself which buttons
+a branch manager should see would be the same hard-coding, moved somewhere
+harder to audit.
 
 ## Signing in
 
@@ -217,8 +243,10 @@ npm --prefix web/bank-portal run build
 | 15 | Rule engine | Complete |
 | 16 | Eligibility engine | Complete |
 | 17 | Loan calculator | Complete |
-| 18 | Loan application | Next |
-| 19–44 | Workflow through production deployment | Not started |
+| 18 | Loan application | Complete |
+| 19 | Workflow engine | Complete |
+| 20 | Credit analysis | Next |
+| 21–44 | CIB through production deployment | Not started |
 
 Milestones 5 and 6 delivered identity: three sign-in journeys, JWT issue and
 rotation, lock-out, the login audit trail, fourteen seeded roles and a permission
@@ -235,6 +263,12 @@ customer who was declined is entitled to know why years later. The amount engine
 takes the lowest of seven configured caps and reports which one bound, and the
 calculator produces the instalment, the fees, the VAT and a schedule that sums
 exactly to the total payable.
+
+Milestones 18 and 19 added the file itself and the machinery that moves it. An
+application is a snapshot — the product version it was judged under, the
+quotation it was given, the applicant as declared — so re-opening one years later
+reproduces what the approver actually saw. Everything about who may move it where
+is configuration: 32 states, 65 transitions and 488 role grants, all rows.
 
 Tokens never reach the browser as JavaScript values. The portal proxies the API
 through its own route handlers and keeps the session in httpOnly cookies, which

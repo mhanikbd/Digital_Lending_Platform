@@ -57,11 +57,32 @@ class LocalDemoAccountsTest {
 
     @Test
     void theRosterCoversBranchRegionAndHeadOfficeSoScopeIsDemonstrable() {
-        // The point of having six accounts rather than one. If they all sat at
-        // head office, signing in as each would prove nothing.
+        // The point of having a roster rather than one account. If they all sat
+        // at head office, signing in as each would prove nothing.
         List<String> units = DemoAccounts.roster().stream().map(DemoAccount::orgUnitCode).toList();
 
         assertThat(units).contains("BR-101", "BR-102", "RG-DHKN", "NRBC");
+    }
+
+    @Test
+    void theRosterCoversEveryStepOfTheWorkflow() {
+        // A demonstrator has to be able to walk one application from origination
+        // to disbursement. A roster missing the sourcing officer strands every
+        // file in the first state, which is exactly what happened before these
+        // four were added.
+        List<String> roles = DemoAccounts.roster().stream().map(DemoAccount::roleCode).toList();
+
+        assertThat(roles)
+                .as("origination")
+                .contains("FO", "SO")
+                .as("branch approval")
+                .contains("BM")
+                .as("head office and credit")
+                .contains("MIS", "CA")
+                .as("delegated approval")
+                .contains("RM", "UH", "HOCRM")
+                .as("disbursement")
+                .contains("CAD");
     }
 
     @Test

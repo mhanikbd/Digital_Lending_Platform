@@ -121,6 +121,8 @@ moment to ask whether it is speculative.
 | V5 | `customer` | `t_customer`, `t_customer_address`, `t_customer_identification` |
 | V6 | `product` | `t_loan_product`, `t_loan_product_version`, `t_product_tenure`, `t_product_fee`, `t_product_risk_limit` |
 | V7 | `rules` | `t_rule_attribute`, `t_rule_group`, `t_rule`, `t_rule_evaluation`, `t_rule_evaluation_detail` |
+| V8 | `workflow` | `t_workflow_state`, `t_role_state_map`, `t_state_transition` |
+| V9 | `application` | `t_loan_purpose`, `t_loan_application`, `t_loan_application_applicant`, `t_loan_application_financial`, `t_loan_application_document`, `t_loan_application_status_history`, `t_loan_application_comment`, `t_loan_application_query`, `t_loan_application_query_response` |
 
 ### Modelling decisions worth knowing
 
@@ -158,6 +160,23 @@ edited or deleted after a decision was made against it. A reason that changes
 when somebody retunes the criteria is not a reason, so the group code, attribute
 code, operator and expected value are copied into the record and the record stops
 depending on the configuration surviving.
+
+**An application copies rather than points.** `t_loan_application` records the
+product version, the rate and the quotation; `t_loan_application_applicant` and
+`_financial` copy the customer as declared on the day. A decision taken on last
+year's facts has to keep showing last year's facts, and a product repriced next
+month must not change the basis of one already taken.
+
+**The status history is text, not foreign keys.** The user who moved a file may
+later be deleted and the state may later be retired. A history that can be
+emptied by a tidy-up is not a history, so the actor, the role and both states are
+copied into the row.
+
+**A transition can carry a role.** `t_state_transition.actor_role_code` exists
+because three roles RECOMMEND from the same state into three different
+destinations. Null means the move is open to whoever the role/state map allows,
+which is almost all of them - and putting the answer in the row rather than in
+the engine is what makes a fourth branch role an INSERT.
 
 **Exposure ceilings are nullable and unset.** `max_total_exposure` caps what a
 borrower may owe in total. Left null for e-Loan on purpose: the product's own

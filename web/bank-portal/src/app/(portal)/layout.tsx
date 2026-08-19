@@ -19,6 +19,7 @@ import { currentUser } from "@/lib/session";
  */
 const NAVIGATION = [
   { href: "/", label: "Overview" },
+  { href: "/applications", label: "Applications" },
   { href: "/customers", label: "Customers" },
   { href: "/products", label: "Products" },
   { href: "/eligibility", label: "Eligibility" },
@@ -77,9 +78,9 @@ export default async function PortalLayout({ children }: LayoutProps<"/">) {
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">{children}</main>
 
       <footer className="border-t border-slate-200 px-6 py-4 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-        Milestones 1 to 17 &mdash; foundation, access control, the customer master,
-        the product catalogue, and the rule, eligibility and pricing engines.
-        Loan applications and workflow are not enabled yet.
+        Milestones 1 to 19 &mdash; foundation, access control, the customer master,
+        the product catalogue, the rule, eligibility and pricing engines, and the
+        loan application with its six-step workflow.
       </footer>
     </div>
   );

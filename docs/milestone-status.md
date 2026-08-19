@@ -12,13 +12,14 @@ incomplete, why.
 
 | | Milestones | Status |
 | --- | --- | --- |
-| **Complete** | 1–8, 13–17 | 13 of 44 |
+| **Complete** | 1–8, 13–19 | 15 of 44 |
 | **Deferred by instruction** | 9–12 | Onboarding — to be scheduled |
-| **Not started** | 18–44 | Applications onwards |
+| **Not started** | 20–44 | Credit analysis onwards |
 
-The platform can now answer the two questions that precede a loan application:
-**may this customer borrow**, and **on what terms**. What it cannot yet do is
-accept the application.
+The platform now takes a loan application and walks it through the full six-step
+workflow, from origination to a closed disbursement. What happens *inside* the
+later steps — credit analysis proper, CIB, screening, the sanctioning-limit
+matrix, real core banking — is what remains.
 
 ---
 
@@ -64,11 +65,22 @@ Deferred at the client's request, to be scheduled later. Nothing in Milestones
 | 16 | Eligibility engine | Complete | `POST /api/v1/eligibility/check`, scope-filtered, fully explained |
 | 17 | Loan calculator | Complete | Amount engine (7 caps, binding factor reported) and pricing calculator (§19, §20) |
 
-### Phases 5–10 (Milestones 18–44) — not started
+### Phase 5 — Application and workflow (Milestones 18–19) — complete
 
-Loan applications, workflow, credit analysis, CIB, screening, approval,
-disbursement, loans, repayment, collections, NPL, notifications, mobile apps,
-portals, reporting, audit, performance, security hardening, deployment.
+| # | Milestone | Status | Delivered |
+| - | --------- | ------ | --------- |
+| 18 | Loan application | Complete | `application` schema (9 tables), the loan file as a snapshot, purposes as configuration, queries with retained answers, append-only status history |
+| 19 | Workflow engine | Complete | `workflow` schema, 32 states across six steps, 65 transitions, 488 role grants, `available-actions`, and no role name anywhere in the engine |
+
+### Phases 6–10 (Milestones 20–44) — not started
+
+Credit analysis, CIB, screening, approval matrix, conditional and group approval,
+disbursement, CBS, repayment, DPD, NPL, collections, notifications, mobile apps,
+the remaining portals, reporting, audit, performance, security hardening and
+production deployment.
+
+The workflow states for all of them already exist. What is missing is what
+happens inside them, not where a file may go.
 
 ---
 
@@ -145,7 +157,7 @@ either size.
 
 ### Tests
 
-**173 unit tests, all passing.** New in this milestone group:
+**187 unit tests, all passing.** New across these milestone groups:
 
 | Class | Cases | Covers |
 | ----- | ----- | ------ |
@@ -154,10 +166,68 @@ either size.
 | `RuleEngineTest` | 12 | AND/OR combination, reasons, empty and deactivated rules, audit recording |
 | `LoanAmountEngineTest` | 13 | The specification's worked example, binding factors, unconfigured caps, rounding |
 | `CustomerRuleContextTest` | 9 | Attribute completeness and absent-data handling |
-| `LocalDemoAccountsTest` | 11 | That every class knowing a demo password carries the local-profile guard |
+| `LocalDemoAccountsTest` | 12 | The local-profile guard on every class knowing a demo password, and roster coverage of every workflow step |
+| `WorkflowServiceTest` | 14 | Both gates, grants adding up across roles, role-specific transitions, and refusing to guess an ambiguous move |
 
 Integration tests (4 classes, 14 cases) are kept current but **have never been
 executed**: they need a Docker daemon, and this workstation cannot run one.
+
+---
+
+## What Milestones 18–19 delivered
+
+### Database
+
+| Migration | Schema | Tables |
+| --------- | ------ | ------ |
+| `V8` | `workflow` | `t_workflow_state`, `t_role_state_map`, `t_state_transition` |
+| `V9` | `application` | `t_loan_purpose`, `t_loan_application`, `t_loan_application_applicant`, `t_loan_application_financial`, `t_loan_application_document`, `t_loan_application_status_history`, `t_loan_application_comment`, `t_loan_application_query`, `t_loan_application_query_response` |
+
+Seeded: 32 workflow states across the six steps, 65 legal transitions, 488
+role/state grants and six loan purposes. Checked on a clean database — no state
+is unreachable, and no non-terminal state has no way out.
+
+### The rule the milestone is really about
+
+> Do NOT hard-code role names inside workflow business logic. For example, do
+> not write `if (role.equals("BM"))`.
+
+`WorkflowService` reads three tables and answers two questions: what may this
+person do here, and is this particular move allowed. It contains no role name and
+no state name. Adding a role, a state or a seventh step is an `INSERT`.
+
+Two gates must agree before an action is offered — the role/state map has to
+grant it, and the transition table has to offer a move for it. A grant with no
+transition is a button that fails when pressed; a transition with no grant is a
+move nobody can make.
+
+### API
+
+| Method | Path | Permission |
+| ------ | ---- | ---------- |
+| GET | `/api/v1/loan-applications` (`?state=`) | `application.view` |
+| GET | `/api/v1/loan-applications/purposes` | `application.view` |
+| GET | `/api/v1/loan-applications/{no}` | `application.view` |
+| GET | `/api/v1/loan-applications/{no}/available-actions` | `application.view` |
+| POST | `/api/v1/loan-applications` | `application.create` |
+| POST | `/api/v1/loan-applications/{no}/actions` | `application.act` |
+| POST | `/api/v1/loan-applications/{no}/comments` | `application.act` |
+| GET | `/api/v1/workflow/{states,transitions,permissions}` | `workflow.view` |
+
+### Portal
+
+- **Applications** — the queue, filterable by any configured workflow state
+- **Application detail** — the terms it was judged under, the applicant as
+  declared, the finances behind the ratio, every query with its answers, and the
+  full trail
+- **Actions** — rendered from `available-actions`, so the portal draws what the
+  backend permits rather than deciding for itself
+
+### The demonstration roster grew to ten
+
+The six accounts could not walk the workflow: with no sourcing officer, every
+file stranded in the first state. `SO`, `MIS`, `UH` and `CAD` were added, and a
+test now asserts the roster covers every step.
 
 ---
 
@@ -177,6 +247,11 @@ Against a database built from empty, with the backend and portal running:
 | Audit trail | Evaluation + 6 detail rows + JSON context snapshot persisted per check |
 | Version lifecycle | Draft → amend → activate retires v1 → quote switches to v2 → retire leaves nothing on sale |
 | Refusals | Second draft 409 · amend an active version 409 · out-of-range amount 422 · unoffered tenure 422 |
+| Migrations V1–V9 | 9 applied on a clean database, Hibernate `validate` accepts every entity |
+| Workflow graph | 32 states, 65 transitions, 488 grants; no unreachable state, no dead end |
+| Six-step walk | One application from `SO_CREATED` to `CLOSED` across ten roles, with a query raised and answered and the amount cut from 35,000 to 30,000 |
+| Workflow refusals | Wrong role 403 · illegal move 403 · closed file 409 · missing reason 400 · ambiguous destination 400 |
+| Application guards | A purpose needing detail refused without it; a credit analyst refused `application.create` |
 | Demo accounts | All six seeded, granted and posted on one fresh start; every published credential authenticates |
 | Scope, end to end | BM sees BR-101 (3), FO sees BR-102 (3), RM sees both (6), head office sees all (10) |
 | Negotiated rate | Honoured with `product.price`, refused without it |

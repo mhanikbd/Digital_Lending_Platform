@@ -205,8 +205,13 @@ exist yet.
 | `product.price` | ADMIN, HOCRM, CEO, MD | Quoting a rate other than the published one |
 | `rules.view` | ADMIN, CA, HOCRM, CEO, MD, PPC | Reading the eligibility criteria |
 | `rules.configure` | ADMIN | Reserved; no write endpoint exists yet |
+| `workflow.view` | every staff role | The configured states, transitions and role/state map |
+| `workflow.configure` | ADMIN | Reserved; no write endpoint exists yet |
+| `application.view` | every staff role | The loan queue, within the caller's scope |
+| `application.act` | every staff role | Taking the workflow actions the role/state map allows |
+| `application.create` | ADMIN, FO, SO | Raising an application |
 
-Three of those are narrower than the rest, and deliberately.
+Four of those are narrower than the rest, and deliberately.
 
 **`product.configure`** decides what every subsequent application is judged by.
 It sits with administration alone until the maker and checker of Milestone 21
@@ -222,6 +227,15 @@ asked for, silently, would be the worse failure.
 
 **`rules.view`** goes to credit as well as to administration: anybody who has to
 explain a decline needs to be able to read the rule that produced it.
+
+**`application.create`** is not granted to credit or to any approval tier. An
+analyst who could raise the file they are about to assess is a control failure,
+so origination goes to the roles that source business and nothing else.
+
+Note what `application.act` does *not* do. Holding it does not decide what a
+person may do to a file - the role/state map does, per state. The permission only
+says they may take workflow actions at all; a credit analyst holding it can still
+do nothing to an application sitting with the branch.
 
 `rules.configure` is granted but guards nothing yet. That is intentional and
 visible rather than a permission invented later under time pressure; the write

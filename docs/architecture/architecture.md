@@ -189,7 +189,7 @@ justifies a broker.
 - Next.js portal with a system health page that exercises the whole vertical
 - 33 unit tests and 14 Testcontainers integration tests
 
-## 9. What Milestones 5 to 17 added
+## 9. What Milestones 5 to 19 added
 
 - **5-6** Authentication and authorisation: sign-in, MFA, session rotation, the
   login audit trail, fourteen roles and a permission catalogue
@@ -202,10 +202,13 @@ justifies a broker.
   evaluation recorded against the product version it was decided under
 - **16-17** The eligibility engine, the loan amount engine that reports which of
   seven caps bound the result, and the pricing calculator behind both
+- **18-19** The loan application - a snapshot of the terms, the applicant and the
+  quotation it was judged on - and the six-step workflow, whose states,
+  transitions and role permissions are three tables rather than any Java
 
 ## 10. What is deliberately absent
 
-Loan applications, workflow, credit analysis, approval, disbursement, repayment,
-collections and the Flutter applications. Each arrives in its own milestone. No
-speculative tables, no speculative abstractions and no dependencies without a
-current use.
+Credit analysis, CIB and screening, the sanctioning-limit matrix, disbursement to
+core banking, repayment, collections and the Flutter applications. Each arrives
+in its own milestone. No speculative tables, no speculative abstractions and no
+dependencies without a current use.

@@ -356,6 +356,146 @@ export type Eligibility = z.infer<typeof eligibilitySchema>;
 export type RuleGroupResult = z.infer<typeof ruleGroupResultSchema>;
 export type LimitFactor = z.infer<typeof limitFactorSchema>;
 
+/* ---- Loan applications and workflow ------------------------------------ */
+
+export const applicationSummarySchema = z.object({
+  applicationNo: z.string(),
+  customerId: z.string(),
+  customerName: z.string(),
+  productCode: z.string(),
+  productName: z.string(),
+  requestedAmount: decimal,
+  approvedAmount: decimal.optional(),
+  tenureMonths: z.number(),
+  stateCode: z.string(),
+  stateName: z.string(),
+  stepNo: z.number(),
+  stepName: z.string(),
+  customerStage: z.string(),
+  branchCode: z.string().optional(),
+  sourceChannel: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const applicationListSchema = z.array(applicationSummarySchema);
+
+export const availableActionSchema = z.object({
+  action: z.string(),
+  label: z.string(),
+  toState: z.string().optional(),
+  reasonRequired: z.boolean(),
+});
+
+export const availableActionListSchema = z.array(availableActionSchema);
+
+export const applicationDetailSchema = z.object({
+  applicationNo: z.string(),
+  stateCode: z.string(),
+  stateName: z.string(),
+  stepNo: z.number(),
+  stepName: z.string(),
+  customerStage: z.string(),
+  customerId: z.string(),
+  branchCode: z.string().optional(),
+  sourceChannel: z.string(),
+  productCode: z.string(),
+  productName: z.string(),
+  productVersion: z.number(),
+  currency: z.string(),
+  requestedAmount: decimal,
+  requestedTenureMonths: z.number(),
+  approvedAmount: decimal.optional(),
+  approvedTenureMonths: z.number().optional(),
+  purposeCode: z.string(),
+  purposeDetail: z.string().optional(),
+  interestRate: decimal,
+  interestMethod: z.string(),
+  instalmentAmount: decimal.optional(),
+  totalPayable: decimal.optional(),
+  netDisbursement: decimal.optional(),
+  disbursementAccount: z.string().optional(),
+  consentGiven: z.boolean(),
+  consentAt: z.string().optional(),
+  submittedAt: z.string().optional(),
+  decidedAt: z.string().optional(),
+  createdAt: z.string(),
+  applicants: z.array(z.object({
+    applicantType: z.string(),
+    fullName: z.string(),
+    dateOfBirth: z.string().optional(),
+    gender: z.string().optional(),
+    mobile: z.string(),
+    email: z.string().optional(),
+    nationalId: z.string().optional(),
+    occupation: z.string().optional(),
+    employerName: z.string().optional(),
+    designation: z.string().optional(),
+    presentAddress: z.string().optional(),
+    permanentAddress: z.string().optional(),
+  })).default([]),
+  financial: z.object({
+    monthlyIncome: decimal,
+    otherMonthlyIncome: decimal,
+    monthlyExpense: decimal,
+    existingLiabilities: decimal,
+    existingEmi: decimal,
+    netWorth: decimal.optional(),
+    debtBurdenRatio: decimal.optional(),
+  }).optional(),
+  history: z.array(z.object({
+    fromState: z.string().optional(),
+    toState: z.string(),
+    action: z.string(),
+    actorUsername: z.string(),
+    actorRole: z.string().optional(),
+    reason: z.string().optional(),
+    occurredAt: z.string(),
+  })).default([]),
+  comments: z.array(z.object({
+    stateCode: z.string().optional(),
+    authorUsername: z.string(),
+    authorRole: z.string().optional(),
+    comment: z.string(),
+    internalOnly: z.boolean(),
+    createdAt: z.string(),
+  })).default([]),
+  queries: z.array(z.object({
+    queryNo: z.number(),
+    question: z.string(),
+    queryType: z.string(),
+    status: z.string(),
+    raisedBy: z.string(),
+    raisedByRole: z.string().optional(),
+    raisedAt: z.string(),
+    responses: z.array(z.object({
+      response: z.string(),
+      respondedBy: z.string(),
+      respondedByRole: z.string().optional(),
+      respondedAt: z.string(),
+    })).default([]),
+  })).default([]),
+});
+
+export const workflowStateSchema = z.object({
+  code: z.string(),
+  name: z.string(),
+  description: z.string().optional(),
+  stepNo: z.number(),
+  stepName: z.string(),
+  stateType: z.string(),
+  customerStage: z.string(),
+  slaHours: z.number().optional(),
+  status: z.string(),
+});
+
+export const workflowStateListSchema = z.array(workflowStateSchema);
+
+export type ApplicationSummary = z.infer<typeof applicationSummarySchema>;
+export type ApplicationDetail = z.infer<typeof applicationDetailSchema>;
+export type AvailableAction = z.infer<typeof availableActionSchema>;
+export type WorkflowStateInfo = z.infer<typeof workflowStateSchema>;
+
 export type ApiError = z.infer<typeof apiErrorSchema>;
 export type AuthenticatedUser = z.infer<typeof authenticatedUserSchema>;
 export type TokenPair = z.infer<typeof tokenPairSchema>;
