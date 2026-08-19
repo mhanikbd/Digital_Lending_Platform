@@ -1,6 +1,9 @@
 package com.naztech.lending.security;
 
 import com.naztech.lending.config.CorsProperties;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,8 +35,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+
     /** Paths that must stay reachable without a credential, in every environment. */
-    private static final String[] PUBLIC_PATHS = {
+    private static final String[] BASELINE_PUBLIC_PATHS = {
             "/api/v1/auth/bank/login",
             "/api/v1/auth/bank/mfa",
             "/api/v1/auth/customer/otp",
@@ -59,13 +64,32 @@ public class SecurityConfig {
                 .build();
     }
 
+    /**
+     * The paths open without a credential: the baseline, plus whatever a
+     * profile-scoped module contributes.
+     *
+     * <p>Contributions are logged with their reason. An endpoint that is open
+     * because of a profile should be visible in the startup log of the
+     * environment that opened it, and absent from every other one.
+     */
+    private String[] publicPaths(List<PublicEndpoints> contributors) {
+        List<String> paths = new java.util.ArrayList<>(List.of(BASELINE_PUBLIC_PATHS));
+        for (PublicEndpoints contributor : contributors) {
+            paths.addAll(contributor.paths());
+            log.info("Permitting {} without authentication: {}",
+                    contributor.paths(), contributor.reason());
+        }
+        return paths.toArray(String[]::new);
+    }
+
     @Bean
     @Order(2)
     SecurityFilterChain apiSecurityFilterChain(HttpSecurity http,
                                                CorsConfigurationSource corsConfigurationSource,
                                                JwtAuthenticationConverter jwtAuthenticationConverter,
                                                RestAuthenticationEntryPoint authenticationEntryPoint,
-                                               RestAccessDeniedHandler accessDeniedHandler) throws Exception {
+                                               RestAccessDeniedHandler accessDeniedHandler,
+                                               List<PublicEndpoints> publicEndpoints) throws Exception {
         return http
                 // No cookies or server-side sessions are used, so CSRF tokens add nothing.
                 .csrf(csrf -> csrf.disable())
@@ -83,7 +107,7 @@ public class SecurityConfig {
                                 .includeSubDomains(true)
                                 .maxAgeInSeconds(31536000)))
                 .authorizeHttpRequests(requests -> requests
-                        .requestMatchers(PUBLIC_PATHS).permitAll()
+                        .requestMatchers(publicPaths(publicEndpoints)).permitAll()
                         // Closed by default: a new endpoint is unreachable until its
                         // authorisation rule is added deliberately.
                         .anyRequest().authenticated())

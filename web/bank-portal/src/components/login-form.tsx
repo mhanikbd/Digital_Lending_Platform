@@ -5,6 +5,7 @@ import { useId, useState, type FormEvent } from "react";
 import { z } from "zod";
 
 import { ArrowRightIcon, EyeIcon, EyeOffIcon, LockIcon, UserIcon } from "@/components/icons";
+import type { DemoAccount } from "@/lib/api/contracts";
 import { cn } from "@/lib/cn";
 
 /**
@@ -35,7 +36,7 @@ const FIELD_STYLES =
 
 const ERROR_TEXT = "mt-1.5 text-xs text-red-600 theme-dark:text-red-400";
 
-export function LoginForm() {
+export function LoginForm({ demoAccounts = [] }: { demoAccounts?: DemoAccount[] }) {
   const router = useRouter();
   const usernameId = useId();
   const passwordId = useId();
@@ -50,6 +51,22 @@ export function LoginForm() {
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [notice, setNotice] = useState<string | null>(null);
+  const [filledFrom, setFilledFrom] = useState<string | null>(null);
+
+  /**
+   * Loads a demonstration account into the form.
+   *
+   * <p>Fills, and stops there. Signing in is still a deliberate press, because
+   * a card that signs you in the instant you brush it is a card that signs you
+   * in as the wrong person while you are reading the list.
+   */
+  function fillFrom(account: DemoAccount) {
+    setUsername(account.username);
+    setPassword(account.password);
+    setFilledFrom(account.username);
+    setErrors({});
+    setNotice(null);
+  }
 
   /** Sends the signed-in operator on, and drops the credential from memory. */
   function onAuthenticated() {
@@ -209,7 +226,10 @@ export function LoginForm() {
             spellCheck={false}
             placeholder="Enter your employee ID"
             value={username}
-            onChange={(event) => setUsername(event.target.value)}
+            onChange={(event) => {
+              setUsername(event.target.value);
+              setFilledFrom(null);
+            }}
             aria-invalid={errors.username ? true : undefined}
             aria-describedby={errors.username ? `${usernameId}-error` : undefined}
             className={cn(
@@ -239,7 +259,10 @@ export function LoginForm() {
             autoComplete="current-password"
             placeholder="Enter your password"
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              setFilledFrom(null);
+            }}
             aria-invalid={errors.password ? true : undefined}
             aria-describedby={errors.password ? `${passwordId}-error` : undefined}
             className={cn(
@@ -283,7 +306,83 @@ export function LoginForm() {
       </button>
 
       {notice && <Notice>{notice}</Notice>}
+
+      {demoAccounts.length > 0 && (
+        <DemoAccountPicker
+          accounts={demoAccounts}
+          selected={filledFrom}
+          onPick={fillFrom}
+        />
+      )}
     </form>
+  );
+}
+
+/**
+ * The seeded accounts, one card each.
+ *
+ * <p>Present only when the API offered any, which it does only under the local
+ * profile. That is a better gate than reading the environment name here: it is
+ * the backend that decides whether these accounts exist, so it should be the
+ * backend that decides whether they are shown.
+ *
+ * <p>The roster is chosen to make the platform's rules visible - branch against
+ * region against head office - so the roles are labelled rather than left as
+ * codes. Clicking fills the form; it does not sign in.
+ */
+function DemoAccountPicker({
+  accounts,
+  selected,
+  onPick,
+}: {
+  accounts: DemoAccount[];
+  selected: string | null;
+  onPick: (account: DemoAccount) => void;
+}) {
+  return (
+    // Narrower rather than absent on a short viewport. A 1366x768 laptop is a
+    // demonstration machine, and this is how somebody signs in on it - hiding
+    // the picker there would remove the feature exactly where it is used.
+    <div className="rounded-lg border border-line bg-panel px-3 py-2.5 short:py-2 tiny:hidden">
+      <p className="font-mono text-[10px] tracking-wider text-ink-subtle uppercase">
+        Local environment &middot; pick an account to fill the form
+      </p>
+
+      <ul className="mt-2 grid grid-cols-2 gap-1.5 short:mt-1.5 short:grid-cols-3">
+        {accounts.map((account) => {
+          const isSelected = selected === account.username;
+          return (
+            <li key={account.username}>
+              <button
+                type="button"
+                onClick={() => onPick(account)}
+                title={account.note}
+                aria-pressed={isSelected}
+                className={cn(
+                  "w-full rounded-md border px-2.5 py-1.5 text-left transition",
+                  "focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:outline-none",
+                  isSelected
+                    ? "border-brand bg-brand/10"
+                    : "border-line bg-canvas hover:border-brand/60",
+                )}
+              >
+                <span className="block truncate text-xs font-medium text-ink short:text-[11px]">
+                  {account.displayName}
+                </span>
+                <span className="mt-0.5 block truncate font-mono text-[10px] text-ink-subtle">
+                  {account.roleCode} &middot; {account.orgUnitCode}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      <p className="mt-2 text-[10px] leading-relaxed text-ink-subtle short:hidden">
+        Seeded on this machine only. The password is filled in for you; press
+        Sign in to continue.
+      </p>
+    </div>
   );
 }
 

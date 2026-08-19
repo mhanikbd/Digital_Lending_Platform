@@ -7,8 +7,11 @@ import { NaztechLogo } from "@/components/naztech-logo";
 import { LoginForm } from "@/components/login-form";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { fetchFromBackend } from "@/lib/api/backend";
-import { platformHealthSchema, platformInfoSchema } from "@/lib/api/contracts";
-import { publicEnv } from "@/lib/env";
+import {
+  demoAccountListSchema,
+  platformHealthSchema,
+  platformInfoSchema,
+} from "@/lib/api/contracts";
 import { cn } from "@/lib/cn";
 
 export const metadata: Metadata = {
@@ -19,9 +22,14 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
-  const [health, info] = await Promise.all([
+  // The demo accounts are asked for unconditionally and simply absent when the
+  // API declines. That endpoint exists only under the backend's local profile,
+  // so the backend decides whether credentials are on offer - not an
+  // environment name this application happens to be started with.
+  const [health, info, demoAccounts] = await Promise.all([
     fetchFromBackend("/api/v1/platform/health", platformHealthSchema),
     fetchFromBackend("/api/v1/platform/info", platformInfoSchema),
+    fetchFromBackend("/api/v1/auth/demo-accounts", demoAccountListSchema),
   ]);
 
   const online = health.ok && health.data.status === "UP";
@@ -77,23 +85,10 @@ export default async function LoginPage() {
               Access your account to continue
             </p>
 
-            <LoginForm />
-
-            {publicEnv.appEnv === "local" && (
-              <div className="mt-[var(--gap-stack)] rounded-lg border border-line bg-panel px-4 py-3">
-                <p className="font-mono text-[11px] tracking-wider text-ink-subtle uppercase">
-                  Local environment
-                </p>
-                {/* The seeded employee id, so a developer does not have to read
-                    the source to find it. Never the password: that is in
-                    application-local.yml, and printing it on a sign-in page is a
-                    habit that outlives the environment it was safe in. */}
-                <p className="mt-1.5 text-xs leading-relaxed text-ink-muted tiny:hidden">
-                  Seeded administrator <span className="font-mono text-ink">EMP-10001</span>.
-                  Its password is set by <span className="font-mono">dlp.auth.bootstrap.password</span>.
-                </p>
-              </div>
-            )}
+            {/* The picker lives inside the form because it fills the form.
+                Lifting that state out to sit beside it would buy nothing and
+                cost a round trip through this server component. */}
+            <LoginForm demoAccounts={demoAccounts.ok ? demoAccounts.data : []} />
 
             <div className="mt-[var(--gap-stack)] flex flex-col items-center gap-[var(--gap-tight)]">
               <ThemeSwitcher />

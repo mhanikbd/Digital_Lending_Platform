@@ -227,6 +227,36 @@ explain a decline needs to be able to read the rule that produced it.
 visible rather than a permission invented later under time pressure; the write
 endpoints arrive with maker-checker.
 
+### Demonstration accounts, and the three guards on them
+
+The sign-in page lists six staff accounts with their passwords and fills the
+form when one is clicked. That is a deliberate convenience for demonstrating the
+platform - signing in as a branch manager and then as a regional manager is the
+clearest way to show organisational scope narrowing a customer list - and it is
+acceptable only because three things hold together:
+
+1. **The accounts exist only under the `local` profile.** They are created by a
+   profile-guarded `ApplicationRunner`, never by a migration. A migration runs
+   everywhere; a runner guarded by a profile does not.
+2. **The endpoint exists only under that profile.** `LocalDemoAccountController`
+   is `@Profile("local")`, and the path is opened by a `PublicEndpoints` bean
+   that is guarded the same way - so outside the profile the path is neither
+   permitted nor served, and the request 404s.
+3. **The runner refuses to seed into a real database.** If any staff account
+   exists whose username is not on the roster, it seeds nothing and logs why.
+   Pointing a local build at a populated database therefore adds no published
+   credential to it.
+
+`LocalDemoAccountsTest` pins the first two by asserting the annotation on every
+class that knows a password. If any of the three is ever relaxed, the endpoint
+has to go with it.
+
+The baseline public path list in `SecurityConfig` is deliberately *not* where
+this path was added. A permitted path for a handler that does not exist in the
+environment reading the configuration is a line nobody can explain two years
+later, so profile-scoped modules contribute their own and the reason is logged
+at startup.
+
 ## 10. Known gaps
 
 These are tracked, not overlooked:

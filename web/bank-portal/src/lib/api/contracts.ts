@@ -81,6 +81,28 @@ export const loginResponseSchema = z.object({
   mfaExpiresInSeconds: z.number().optional(),
 });
 
+/**
+ * A seeded local account, offered on the sign-in page.
+ *
+ * <p>Carries a password, which is only ever true of a backend running under the
+ * local profile - outside it the endpoint is not registered and this schema
+ * parses nothing.
+ */
+export const demoAccountSchema = z.object({
+  username: z.string(),
+  password: z.string(),
+  displayName: z.string(),
+  roleCode: z.string(),
+  roleName: z.string(),
+  scope: z.string().optional(),
+  orgUnitCode: z.string(),
+  note: z.string(),
+});
+
+export const demoAccountListSchema = z.array(demoAccountSchema);
+
+export type DemoAccount = z.infer<typeof demoAccountSchema>;
+
 /* ---- Organisation ------------------------------------------------------ */
 
 /**

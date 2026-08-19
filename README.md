@@ -24,7 +24,7 @@ than new codebases.
 > disbursement, repayment and collections. Onboarding (Milestones 9–12) is
 > deferred by instruction.
 >
-> **162 unit tests, all passing.** Full detail in
+> **173 unit tests, all passing.** Full detail in
 > [milestone status](docs/milestone-status.md).
 
 ## What works today
@@ -49,6 +49,30 @@ backend:
 | Fees + VAT | 525.00 + 52.50 |
 | Total payable | 37,307.12 |
 | Reaches the account | 34,422.50 |
+
+## Signing in
+
+Under the `local` profile the backend seeds six staff accounts and the sign-in
+page offers each as a card &mdash; clicking one fills the form. They exist to make
+the platform's own rules visible:
+
+| Employee id | Role | Posted to | Sees |
+| ----------- | ---- | --------- | ---- |
+| `EMP-10001` | System Administrator | NRBC | Everything, including product and rule configuration |
+| `EMP-10002` | Branch Manager | BR-101 | Gulshan branch only &mdash; 3 customers |
+| `EMP-10003` | Field Officer | BR-102 | Banani branch only &mdash; 3 customers |
+| `EMP-10004` | Relationship Manager | RG-DHKN | Every branch beneath Dhaka North &mdash; 6 customers |
+| `EMP-10005` | Credit Analyst | PPC-01 | The whole bank, and the rule configuration |
+| `EMP-10006` | Head of Credit Risk | DEP-CRM | The whole bank, and may quote a negotiated rate |
+
+Signing in as EMP-10002 and then EMP-10004 is the quickest way to see
+organisational scope doing something.
+
+This is local development only. The accounts are seeded by a profile-guarded
+runner rather than a migration, the endpoint that publishes the passwords is
+registered only under that profile, and the runner refuses to seed at all if the
+database already holds staff accounts that are not on the roster. See
+[security](docs/security/security.md).
 
 ## Repository layout
 

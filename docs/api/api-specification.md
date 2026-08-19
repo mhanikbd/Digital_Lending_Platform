@@ -169,6 +169,21 @@ deliberately no roles or scopes, which arrive with Milestone 6. Revocation acts
 on the refresh token, which is opaque and server-side.
 
 
+### Demonstration accounts - local profile only
+
+| Method | Path | Authentication |
+| ------ | ---- | -------------- |
+| GET | `/api/v1/auth/demo-accounts` | None |
+
+Returns the six seeded staff accounts **with their passwords**, so the sign-in
+page can offer them as one-click cards. Registered only under the backend's
+`local` profile; in any other environment the bean does not exist, the path is
+not permitted, and the request answers 404.
+
+See [security](../security/security.md) for the three guards that make this
+acceptable, and [development setup](../deployment/development-setup.md) for the
+roster.
+
 ### Access administration
 
 Guarded by permission, not by role. A bank that decides its Unit Heads may

@@ -61,6 +61,4 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
 
     @EntityGraph(attributePaths = "roles")
     List<UserAccount> findByUserTypeOrderByUsernameAsc(UserType userType);
-
-    boolean existsByUserType(UserType userType);
 }

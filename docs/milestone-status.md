@@ -112,9 +112,32 @@ token stays in an httpOnly cookie the page cannot read.
   schedule
 - **Overview** — rebuilt to separate what works from what is still to come
 
+### Demonstration sign-in
+
+The sign-in page now offers the six seeded staff accounts as cards; clicking one
+fills the form. The roster is chosen to make the platform's own rules visible
+rather than to cover all fourteen roles:
+
+| Employee id | Role | Posted to | Sees |
+| ----------- | ---- | --------- | ---- |
+| `EMP-10001` | System Administrator | NRBC | 10 customers · 11 permissions |
+| `EMP-10002` | Branch Manager | BR-101 | 3 customers · 5 permissions |
+| `EMP-10003` | Field Officer | BR-102 | 3 customers · 5 permissions |
+| `EMP-10004` | Relationship Manager | RG-DHKN | 6 customers · 5 permissions |
+| `EMP-10005` | Credit Analyst | PPC-01 | 10 customers · 6 permissions |
+| `EMP-10006` | Head of Credit Risk | DEP-CRM | 10 customers · 7 permissions |
+
+Signing in as the branch manager and then the relationship manager is the
+quickest demonstration of organisational scope: three customers become six.
+
+Local profile only, and three guards hold it there — the accounts are seeded by a
+profile-guarded runner rather than a migration, the endpoint that publishes the
+passwords is registered only under that profile, and the runner refuses to seed
+if the database already holds staff who are not on the roster.
+
 ### Tests
 
-**162 unit tests, all passing.** New in this milestone group:
+**173 unit tests, all passing.** New in this milestone group:
 
 | Class | Cases | Covers |
 | ----- | ----- | ------ |
@@ -123,6 +146,7 @@ token stays in an httpOnly cookie the page cannot read.
 | `RuleEngineTest` | 12 | AND/OR combination, reasons, empty and deactivated rules, audit recording |
 | `LoanAmountEngineTest` | 13 | The specification's worked example, binding factors, unconfigured caps, rounding |
 | `CustomerRuleContextTest` | 9 | Attribute completeness and absent-data handling |
+| `LocalDemoAccountsTest` | 11 | That every class knowing a demo password carries the local-profile guard |
 
 Integration tests (4 classes, 14 cases) are kept current but **have never been
 executed**: they need a Docker daemon, and this workstation cannot run one.
@@ -145,11 +169,13 @@ Against a database built from empty, with the backend and portal running:
 | Audit trail | Evaluation + 6 detail rows + JSON context snapshot persisted per check |
 | Version lifecycle | Draft → amend → activate retires v1 → quote switches to v2 → retire leaves nothing on sale |
 | Refusals | Second draft 409 · amend an active version 409 · out-of-range amount 422 · unoffered tenure 422 |
+| Demo accounts | All six seeded, granted and posted on one fresh start; every published credential authenticates |
+| Scope, end to end | BM sees BR-101 (3), FO sees BR-102 (3), RM sees both (6), head office sees all (10) |
 | Negotiated rate | Honoured with `product.price`, refused without it |
 
 ---
 
-## Two defects found and fixed during this milestone group
+## Three defects found and fixed during this milestone group
 
 **The existing exposure limit blocked good borrowers.** It was computed as the
 product's own maximum minus declared liabilities, which meant a customer earning
@@ -164,6 +190,12 @@ mapped an address to its district before selecting it, so a customer living
 abroad with no district recorded threw a `NullPointerException` and took all six
 criteria with them instead of failing the one rule that tests district. Fixed,
 with a regression test.
+
+**The local bootstraps ran in the wrong order.** `LocalAuthBootstrap` carried no
+`@Order`, so it ran at lowest precedence — last — while the organisation
+bootstrap that posts its accounts ran at 20. On a fresh database the postings
+were therefore all skipped, and a second start quietly repaired them, so the
+fault only ever showed on the first run of a new environment. Ordered first.
 
 ---
 

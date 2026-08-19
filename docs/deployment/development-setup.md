@@ -162,7 +162,35 @@ npm --prefix web/bank-portal run dev
 Create `web/bank-portal/.env.local` from `.env.example` first, so
 `BACKEND_INTERNAL_URL` points at `http://localhost:8080`.
 
-## 6. Everyday commands
+## 6. Signing in
+
+The backend running under the `local` profile seeds six staff accounts and
+publishes them at `GET /api/v1/auth/demo-accounts`. The sign-in page reads that
+endpoint and offers each as a card; clicking one fills the form, and you press
+Sign in yourself.
+
+| Employee id | Role | Posted to | Sees |
+| ----------- | ---- | --------- | ---- |
+| `EMP-10001` | System Administrator | NRBC | Everything, including product and rule configuration |
+| `EMP-10002` | Branch Manager | BR-101 | Gulshan branch only |
+| `EMP-10003` | Field Officer | BR-102 | Banani branch only |
+| `EMP-10004` | Relationship Manager | RG-DHKN | Every branch beneath Dhaka North |
+| `EMP-10005` | Credit Analyst | PPC-01 | The whole bank, and the rule configuration |
+| `EMP-10006` | Head of Credit Risk | DEP-CRM | The whole bank, and may quote a negotiated rate |
+
+The password is `Demo#Local1` for all but the administrator, whose password is
+whatever `dlp.auth.bootstrap.password` is set to (`ChangeMe#Local1` by default).
+
+Signing in as EMP-10002 and then EMP-10004 is the quickest way to see
+organisational scope actually doing something: three customers become six.
+
+**This exists only under the `local` profile.** The accounts are seeded by a
+profile-guarded runner rather than a migration, the endpoint that publishes the
+passwords is registered only under that profile, and the runner refuses to seed
+at all if the database already holds staff accounts that are not on the roster -
+so pointing a local build at a real database adds nothing to it.
+
+## 7. Everyday commands
 
 ```bash
 docker compose logs -f backend
@@ -185,7 +213,7 @@ cleanly from scratch:
 ./infrastructure/scripts/dev-reset.sh
 ```
 
-## 7. Adding a database change
+## 8. Adding a database change
 
 1. Add `V<n>__<description>.sql` under
    `backend/digital-lending-api/src/main/resources/db/migration`.
@@ -195,7 +223,7 @@ cleanly from scratch:
 
 Never edit an applied migration. Correct it with a new one.
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | Symptom | Cause and fix |
 | ------- | ------------- |
