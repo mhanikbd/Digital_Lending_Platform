@@ -319,16 +319,20 @@ export function LoginForm({ demoAccounts = [] }: { demoAccounts?: DemoAccount[] 
 }
 
 /**
- * The seeded accounts, one card each.
+ * The seeded accounts, one pill each.
  *
  * <p>Present only when the API offered any, which it does only under the local
  * profile. That is a better gate than reading the environment name here: it is
  * the backend that decides whether these accounts exist, so it should be the
  * backend that decides whether they are shown.
  *
- * <p>The roster is chosen to make the platform's rules visible - branch against
- * region against head office - so the roles are labelled rather than left as
- * codes. Clicking fills the form; it does not sign in.
+ * <p>Labelled by role, because that is what a demonstrator is choosing between -
+ * the person's name and their posting are on the tooltip, where they answer
+ * "which branch is this one" without taking a line of the sign-in page to do it.
+ *
+ * <p>Clicking fills the form. It does not sign in: a control that signs you in
+ * the instant you brush it signs you in as the wrong person while you are still
+ * reading the row.
  */
 function DemoAccountPicker({
   accounts,
@@ -340,15 +344,12 @@ function DemoAccountPicker({
   onPick: (account: DemoAccount) => void;
 }) {
   return (
-    // Narrower rather than absent on a short viewport. A 1366x768 laptop is a
-    // demonstration machine, and this is how somebody signs in on it - hiding
-    // the picker there would remove the feature exactly where it is used.
-    <div className="rounded-lg border border-line bg-panel px-3 py-2.5 short:py-2 tiny:hidden">
-      <p className="font-mono text-[10px] tracking-wider text-ink-subtle uppercase">
-        Local environment &middot; Demo User Only For the Demonstration
+    <div className="tiny:hidden">
+      <p className="text-[11px] font-medium tracking-wide text-ink-subtle uppercase">
+        Demo accounts (click to fill)
       </p>
 
-      <ul className="mt-2 grid grid-cols-2 gap-1.5 short:mt-1.5 short:grid-cols-3">
+      <ul className="mt-2 flex flex-wrap gap-1.5">
         {accounts.map((account) => {
           const isSelected = selected === account.username;
           return (
@@ -356,32 +357,22 @@ function DemoAccountPicker({
               <button
                 type="button"
                 onClick={() => onPick(account)}
-                title={account.note}
+                title={`${account.displayName} — ${account.note}`}
                 aria-pressed={isSelected}
                 className={cn(
-                  "w-full rounded-md border px-2.5 py-1.5 text-left transition",
+                  "rounded-full border px-3 py-1 text-xs transition",
                   "focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:outline-none",
                   isSelected
-                    ? "border-brand bg-brand/10"
-                    : "border-line bg-canvas hover:border-brand/60",
+                    ? "border-brand bg-brand/10 font-medium text-ink"
+                    : "border-line bg-canvas text-ink-muted hover:border-brand/60 hover:text-ink",
                 )}
               >
-                <span className="block truncate text-xs font-medium text-ink short:text-[11px]">
-                  {account.displayName}
-                </span>
-                <span className="mt-0.5 block truncate font-mono text-[10px] text-ink-subtle">
-                  {account.roleCode} &middot; {account.orgUnitCode}
-                </span>
+                {account.roleCode}
               </button>
             </li>
           );
         })}
       </ul>
-
-      <p className="mt-2 text-[10px] leading-relaxed text-ink-subtle short:hidden">
-        Seeded on this machine only. The password is filled in for you; press
-        Sign in to continue.
-      </p>
     </div>
   );
 }
